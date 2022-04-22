@@ -44,6 +44,13 @@ def _convert_to_date(string):
     return datetime.strptime(string, "%Y-%m-%d").date()
 
 
+def _convert_to_days_hours(string):
+    if ":" not in string:
+        raise ValueError(f": must be exists in argument: {string}")
+
+    return (int(i) for i in string.split(":", 1))
+
+
 def get_args():
     parser = argparse.ArgumentParser("Invoice Generator", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
@@ -52,7 +59,9 @@ def get_args():
     parser.add_argument("--invoice-number", "-i", type=int, required=True, help="invoice number")
     parser.add_argument("--hour-rate", "-r", default=175.0, help="hourly rate")
     parser.add_argument("--directory", "-o", required=True, help="output PDF file for invoice")
-    parser.add_argument("hours", type=float, nargs="+", help="hours for each week")
+    parser.add_argument(
+        "days_hours", type=_convert_to_days_hours, nargs="+", help="days and hours for each week, separate by comma"
+    )
 
     add_common_options(parser)
     return parser.parse_args()
@@ -70,10 +79,11 @@ def generate_invoice(args):
         raise NotADirectoryError(f"not directory: {args.directory}")
 
     bills = []
-    for hours in args.hours:
-        end_date = start_date + relativedelta(days=6)
+    for days, hours in args.days_hours:
+        next_start_date = start_date + relativedelta(days=days)
+        end_date = next_start_date - relativedelta(days=1)
         bills.append(WeekBill(hour_rate=args.hour_rate, quantity=hours, start_date=start_date, end_date=end_date))
-        start_date += relativedelta(days=7)
+        start_date = next_start_date
 
     corp_address = Address(
         company_name="Edward Tech Corporation",
@@ -144,7 +154,12 @@ def generate_invoice(args):
     page_layout.add(Paragraph(f"Payment terms: Net 60", font_size=font_size))
 
     with open(
-        os.path.join(args.directory, f"invoice_{args.invoice_number}_{start_date.strftime('%Y%m%d')}.pdf"), "wb"
+        os.path.join(
+            args.directory,
+            f"{corp_address.company_name.lower().replace(' ', '_')}_invoice_{args.invoice_number}_"
+            f"{start_date.strftime('%Y%m%d')}.pdf",
+        ),
+        "wb",
     ) as f:
         PDF.dumps(f, pdf)
 
