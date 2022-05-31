@@ -20,6 +20,8 @@ from decimal import Decimal
 
 from home_library_common.utility.entry_point import add_common_options, run_entry_point
 
+DEFAULT_RATE = 175.0
+
 
 @dataclasses.dataclass
 class WeekBill:
@@ -44,11 +46,21 @@ def _convert_to_date(string):
     return datetime.strptime(string, "%Y-%m-%d").date()
 
 
-def _convert_to_days_hours(string):
+def _convert_to_days_hours(string) -> typing.Tuple[int, int, float]:
     if ":" not in string:
         raise ValueError(f": must be exists in argument: {string}")
 
-    return (int(i) for i in string.split(":", 1))
+    items = string.split(":", 2)
+    if len(items) > 3:
+        raise ValueError(f"only allow 2 colons")
+
+    if len(items) == 2:
+        days, hours = items
+        rate = DEFAULT_RATE
+    else:
+        days, hours, rate = items
+
+    return int(days), int(hours), float(rate)
 
 
 def get_args():
@@ -57,7 +69,6 @@ def get_args():
         "--start-date", "-s", type=_convert_to_date, required=True, help="start date, must be YYYY-MM-DD"
     )
     parser.add_argument("--invoice-number", "-i", type=int, required=True, help="invoice number")
-    parser.add_argument("--hour-rate", "-r", default=175.0, help="hourly rate")
     parser.add_argument("--directory", "-o", required=True, help="output PDF file for invoice")
     parser.add_argument(
         "days_hours", type=_convert_to_days_hours, nargs="+", help="days and hours for each week, separate by comma"
@@ -79,10 +90,10 @@ def generate_invoice(args):
         raise NotADirectoryError(f"not directory: {args.directory}")
 
     bills = []
-    for days, hours in args.days_hours:
+    for days, hours, hour_rate in args.days_hours:
         next_start_date = start_date + relativedelta(days=days)
         end_date = next_start_date - relativedelta(days=1)
-        bills.append(WeekBill(hour_rate=args.hour_rate, quantity=hours, start_date=start_date, end_date=end_date))
+        bills.append(WeekBill(hour_rate=hour_rate, quantity=hours, start_date=start_date, end_date=end_date))
         start_date = next_start_date
 
     corp_address = Address(
