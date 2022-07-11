@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from home_library_common.utility.entry_point import add_common_options, run_entry_point
 
-DEFAULT_RATE = 175.0
+DEFAULT_RATE = 182.75
 
 
 @dataclasses.dataclass
