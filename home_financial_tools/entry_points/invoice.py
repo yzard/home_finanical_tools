@@ -6,7 +6,7 @@ import typing
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from borb.pdf.document import Document
+from borb.pdf import Document
 from borb.pdf.page.page import Page
 from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable as Table
 from borb.pdf.canvas.layout.table.table import TableCell
@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from home_library_common.utility.entry_point import add_common_options, run_entry_point
 
-DEFAULT_RATE = 182.75
+DEFAULT_RATE = 192.75
 
 
 @dataclasses.dataclass
@@ -119,7 +119,7 @@ def generate_invoice(args):
 
     # Add page
     page = Page()
-    pdf.append_page(page)
+    pdf.add_page(page)
 
     page_layout = SingleColumnLayout(page)
     page_layout.vertical_margin = page.get_page_info().get_height() * Decimal(0.02)
