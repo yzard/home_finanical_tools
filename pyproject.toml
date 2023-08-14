@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "home_financial_tools"
+description = "Home Financial Tools"
+requires-python = ">=3.10"
+authors = [{ name = "Zhuo Yin", email = "zhuoyin@gmail.com" }]
+dynamic = ["dependencies", "version"]
+
+[project.scripts]
+gen_invoice = "home_financial_tools.entry_points.invoice:main"
+
+[tool.setuptools]
+packages = ["home_financial_tools"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+version = {attr = "home_financial_tools.__version__"}
