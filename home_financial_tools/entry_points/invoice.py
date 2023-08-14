@@ -1,7 +1,9 @@
 import argparse
 import dataclasses
+import io
 import os
-import typing
+import logging
+from typing import Tuple, Optional, List
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -17,10 +19,6 @@ from borb.pdf.canvas.layout.page_layout.multi_column_layout import SingleColumnL
 from borb.pdf.pdf import PDF
 
 from decimal import Decimal
-
-from home_library_common.utility.entry_point import add_common_options, run_entry_point
-
-DEFAULT_RATE = 192.75
 
 
 @dataclasses.dataclass
@@ -46,7 +44,7 @@ def _convert_to_date(string):
     return datetime.strptime(string, "%Y-%m-%d").date()
 
 
-def _convert_to_days_hours(string) -> typing.Tuple[int, int, float]:
+def _convert_to_days_hours(string) -> Tuple[int, int, Optional[float]]:
     if ":" not in string:
         raise ValueError(f": must be exists in argument: {string}")
 
@@ -56,11 +54,12 @@ def _convert_to_days_hours(string) -> typing.Tuple[int, int, float]:
 
     if len(items) == 2:
         days, hours = items
-        rate = DEFAULT_RATE
+        rate = None
     else:
         days, hours, rate = items
+        rate = float(rate)
 
-    return int(days), int(hours), float(rate)
+    return int(days), int(hours), rate
 
 
 def get_args():
@@ -70,16 +69,22 @@ def get_args():
     )
     parser.add_argument("--invoice-number", "-i", type=int, required=True, help="invoice number")
     parser.add_argument("--directory", "-o", required=True, help="output PDF file for invoice")
+    parser.add_argument("--padding", "-p", type=int, default=14, help="padding spaces")
     parser.add_argument(
-        "days_hours", type=_convert_to_days_hours, nargs="+", help="days and hours for each week, separate by comma"
+        "--default-hour-rating", "-d", type=float, default=192.75, help="default hour rate if not specified")
+    parser.add_argument(
+        "days_hours",
+        type=_convert_to_days_hours,
+        nargs="+",
+        help="days and hours for each week, the format is <days>:<hours>[:rate]"
     )
 
-    add_common_options(parser)
     return parser.parse_args()
 
 
 def main():
-    run_entry_point(generate_invoice, get_args())
+    logging.basicConfig()
+    return generate_invoice(get_args())
 
 
 def generate_invoice(args):
@@ -91,6 +96,9 @@ def generate_invoice(args):
 
     bills = []
     for days, hours, hour_rate in args.days_hours:
+        if hour_rate is None:
+            hour_rate = args.default_hour_rating
+
         next_start_date = start_date + relativedelta(days=days)
         end_date = next_start_date - relativedelta(days=1)
         bills.append(WeekBill(hour_rate=hour_rate, quantity=hours, start_date=start_date, end_date=end_date))
@@ -154,15 +162,16 @@ def generate_invoice(args):
 
     page_layout.add(Paragraph(f"Make all checks payable to {corp_address.company_name}"))
 
-    page_layout.add(Paragraph(f" "))
-    page_layout.add(Paragraph(f" "))
-    page_layout.add(Paragraph(f" "))
-    page_layout.add(Paragraph(f" "))
-    page_layout.add(Paragraph(f" "))
+    padding = max(0, args.padding - len(bills))
+    for i in range(padding):
+        page_layout.add(Paragraph(f" "))
 
     page_layout.add(Paragraph(f"Terms", font_size=font_size))
     page_layout.add(Paragraph(f"Thank you for your business!", font_size=font_size))
     page_layout.add(Paragraph(f"Payment terms: Net 60", font_size=font_size))
+
+    buf = io.BytesIO()
+    PDF.dumps(buf, pdf)
 
     with open(
         os.path.join(
@@ -172,7 +181,7 @@ def generate_invoice(args):
         ),
         "wb",
     ) as f:
-        PDF.dumps(f, pdf)
+        f.write(buf.getvalue())
 
 
 def _build_invoice_information(corp_address: Address, invoice_number: int, font_size: Decimal):
@@ -229,7 +238,7 @@ def _build_billing_and_shipping_information(bill_address: Address, shipping_addr
     return table_001
 
 
-def _build_itemized_description_table(bills: typing.List[WeekBill], font_size: Decimal):
+def _build_itemized_description_table(bills: List[WeekBill], font_size: Decimal):
     total_number_rows = len(bills) + 2
     total_number_columns = 6
     table_001 = Table(number_of_rows=total_number_rows, number_of_columns=total_number_columns)
@@ -247,7 +256,7 @@ def _build_itemized_description_table(bills: typing.List[WeekBill], font_size: D
         TableCell(
             Paragraph("DESCRIPTION", font_color=X11Color("White"), font_size=font_size, text_alignment=Alignment.RIGHT),
             background_color=column_name_color,
-            col_span=3,
+            column_span=3,
         )
     )
     table_001.add(
@@ -281,7 +290,7 @@ def _build_itemized_description_table(bills: typing.List[WeekBill], font_size: D
                     text_alignment=Alignment.RIGHT,
                 ),
                 background_color=c,
-                col_span=3,
+                column_span=3,
             )
         )
         table_001.add(
@@ -303,7 +312,7 @@ def _build_itemized_description_table(bills: typing.List[WeekBill], font_size: D
     table_001.add(
         TableCell(
             Paragraph("Total", font="Helvetica-Bold", font_size=font_size, horizontal_alignment=Alignment.RIGHT),
-            col_span=5,
+            column_span=5,
         )
     )
     table_001.add(
