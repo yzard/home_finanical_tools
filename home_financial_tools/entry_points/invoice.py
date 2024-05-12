@@ -20,6 +20,17 @@ from borb.pdf.pdf import PDF
 
 from decimal import Decimal
 
+DEFAULT_HOURLY_RATE = 225
+BILLING_ADDRESS = {
+    "company_name": "Iris Software, Inc.",
+    "recipient": "Accounts Payable",
+    "street": "200 Metroplex Drive, Suite 300",
+    "city": "Edison",
+    "state": "NJ",
+    "zip_code": "08817-2600",
+}
+NET = 15
+
 
 @dataclasses.dataclass
 class WeekBill:
@@ -44,7 +55,7 @@ def _convert_to_date(string):
     return datetime.strptime(string, "%Y-%m-%d").date()
 
 
-def _convert_to_days_hours(string) -> Tuple[int, int, Optional[float]]:
+def _convert_to_days_hours(string) -> Tuple[int, float, Optional[float]]:
     if ":" not in string:
         raise ValueError(f": must be exists in argument: {string}")
 
@@ -59,7 +70,7 @@ def _convert_to_days_hours(string) -> Tuple[int, int, Optional[float]]:
         days, hours, rate = items
         rate = float(rate)
 
-    return int(days), int(hours), rate
+    return int(days), float(hours), rate
 
 
 def get_args():
@@ -69,9 +80,10 @@ def get_args():
     )
     parser.add_argument("--invoice-number", "-i", type=int, required=True, help="invoice number")
     parser.add_argument("--directory", "-o", required=True, help="output PDF file for invoice")
-    parser.add_argument("--padding", "-p", type=int, default=14, help="padding spaces")
+    parser.add_argument("--padding", "-p", type=int, default=7, help="padding spaces")
     parser.add_argument(
-        "--default-hour-rating", "-d", type=float, default=192.75, help="default hour rate if not specified")
+        "--default-hour-rating", "-d", type=float, default=DEFAULT_HOURLY_RATE,
+        help="default hour rate if not specified")
     parser.add_argument(
         "days_hours",
         type=_convert_to_days_hours,
@@ -114,14 +126,7 @@ def generate_invoice(args):
         phone_number="917-215-8740",
     )
 
-    bill_address = Address(
-        company_name="BCforward",
-        recipient="Accounts Payable",
-        street="9777 N. College Ave",
-        city="Indianapolis",
-        state="IN",
-        zip_code="46280",
-    )
+    bill_address = Address(**BILLING_ADDRESS)
 
     pdf = Document()
 
@@ -168,18 +173,18 @@ def generate_invoice(args):
 
     page_layout.add(Paragraph(f"Terms", font_size=font_size))
     page_layout.add(Paragraph(f"Thank you for your business!", font_size=font_size))
-    page_layout.add(Paragraph(f"Payment terms: Net 60", font_size=font_size))
+    page_layout.add(Paragraph(f"Payment terms: Net {NET}", font_size=font_size))
 
     buf = io.BytesIO()
     PDF.dumps(buf, pdf)
 
     with open(
-        os.path.join(
-            args.directory,
-            f"{corp_address.company_name.lower().replace(' ', '_')}_invoice_{args.invoice_number}_"
-            f"{start_date.strftime('%Y%m%d')}.pdf",
-        ),
-        "wb",
+            os.path.join(
+                args.directory,
+                f"{corp_address.company_name.lower().replace(' ', '_')}_invoice_{args.invoice_number}_"
+                f"{start_date.strftime('%Y%m%d')}.pdf",
+            ),
+            "wb",
     ) as f:
         f.write(buf.getvalue())
 
