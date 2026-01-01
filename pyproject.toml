@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "home_financial_tools"
 description = "Home Financial Tools"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{ name = "Zhuo Yin", email = "zhuoyin@gmail.com" }]
-dependencies = ["python-dateutil", "fpdf2"]
+dependencies = ["python-dateutil", "fpdf2", "fastapi", "uvicorn", "pyyaml", "pydantic", "bcrypt", "slowapi"]
 dynamic = ["version"]
 
 [project.scripts]

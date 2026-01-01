@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  invoice-service:
+    build: .
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - CONFIG_PATH=/data/config.yaml
+    volumes:
+      - ./sample:/data
+    restart: always
