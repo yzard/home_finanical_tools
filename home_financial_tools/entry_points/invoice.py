@@ -80,7 +80,7 @@ def get_args():
     )
     parser.add_argument("--invoice-number", "-i", type=int, required=True, help="invoice number")
     parser.add_argument("--directory", "-o", required=True, help="output PDF file for invoice")
-    parser.add_argument("--padding", "-p", type=int, default=7, help="padding spaces")
+    parser.add_argument("--padding", "-p", type=int, default=6, help="padding spaces")
     parser.add_argument(
         "--default-hour-rating", "-d", type=float, default=DEFAULT_HOURLY_RATE,
         help="default hour rate if not specified")

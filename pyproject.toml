@@ -7,7 +7,8 @@ name = "home_financial_tools"
 description = "Home Financial Tools"
 requires-python = ">=3.10"
 authors = [{ name = "Zhuo Yin", email = "zhuoyin@gmail.com" }]
-dynamic = ["dependencies", "version"]
+dependencies = ["python-dateutil", "borb==2.1.25"]
+dynamic = ["version"]
 
 [project.scripts]
 gen_invoice = "home_financial_tools.entry_points.invoice:main"
@@ -16,5 +17,4 @@ gen_invoice = "home_financial_tools.entry_points.invoice:main"
 packages = ["home_financial_tools"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = "requirements.txt"}
 version = {attr = "home_financial_tools.__version__"}
