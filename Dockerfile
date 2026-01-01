@@ -1,25 +1,37 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install system dependencies for FPDF2 and networking
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+# - build-base: for compiling Python packages
+# - su-exec: for dropping privileges to specified user
+# - shadow: for usermod/groupmod commands
+RUN apk add --no-cache \
+    build-base \
+    su-exec \
+    shadow
 
 # Copy project files
 COPY . .
 
-# Install dependencies using pip (from pyproject.toml)
-RUN pip install .
+# Install Python dependencies
+RUN pip install --no-cache-dir .
 
 # Create data directory for volume mounting
-RUN mkdir /data
+RUN mkdir -p /data
 
-ENV CONFIG_PATH=/data/config.yaml
-ENV PYTHONPATH=/app
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Expose port (overridden by env vars in app)
+# Set default environment variables
+ENV PUID=1000 \
+    PGID=1000 \
+    UMASK=022 \
+    CONFIG_PATH=/data/config.yaml \
+    PYTHONPATH=/app
+
+# Expose port
 EXPOSE 8000
 
-CMD ["python", "-m", "home_financial_tools.server.main"]
+ENTRYPOINT ["/entrypoint.sh"]
