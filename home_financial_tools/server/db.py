@@ -298,6 +298,7 @@ class Database:
             """
             cursor.execute(sql, (date, hours, hourly_rate, int(hours_inputted), int(rate_inputted)))
             conn.commit()
+
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
         with self._get_connection() as conn:
             cursor = conn.cursor()

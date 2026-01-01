@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from home_financial_tools.pdf.invoice import Address, WeekBill, generate_pdf_to_fp
-from home_financial_tools.server.auth import get_current_user, verify_password, generate_session_token
+from home_financial_tools.server.auth import generate_session_token, get_current_user, verify_password
 
 
 class CorporationData(BaseModel):
@@ -72,20 +72,20 @@ async def login(request: Request, login_data: LoginRequest) -> LoginResponse:
     """
     # Get user credentials
     allowed_users = request.app.state.allowed_users
-    
+
     # Check if user exists
     if login_data.username not in allowed_users:
         raise HTTPException(status_code=403, detail="Invalid credentials")
-    
+
     # Verify password
     password_hash = allowed_users[login_data.username]
     if not verify_password(login_data.password, password_hash):
         raise HTTPException(status_code=403, detail="Invalid credentials")
-    
+
     # Generate session token
     token = generate_session_token()
     request.app.state.sessions[token] = login_data.username
-    
+
     return LoginResponse(token=token, username=login_data.username)
 
 
@@ -96,10 +96,10 @@ async def logout(request: Request, current_user: str = Depends(get_current_user)
     """
     # Get token from header
     token = request.headers.get("X-Auth-Token")
-    
+
     if token and token in request.app.state.sessions:
         del request.app.state.sessions[token]
-    
+
     return {"status": "success"}
 
 
@@ -160,7 +160,9 @@ async def save_ship_to(request: Request, data: AddressData, current_user: str = 
 
 
 @router.get("/time_entries")
-async def get_entries(request: Request, start_date: str, end_date: str, current_user: str = Depends(get_current_user)) -> List[dict]:
+async def get_entries(
+    request: Request, start_date: str, end_date: str, current_user: str = Depends(get_current_user)
+) -> List[dict]:
     db = request.app.state.db
     return db.get_time_entries(start_date, end_date)
 
@@ -168,14 +170,14 @@ async def get_entries(request: Request, start_date: str, end_date: str, current_
 @router.post("/time_entries")
 async def save_entry(request: Request, entry: TimeEntry, current_user: str = Depends(get_current_user)) -> dict:
     db = request.app.state.db
-    db.save_time_entry(
-        entry.date, entry.hours, entry.hourly_rate, entry.hours_inputted, entry.rate_inputted
-    )
+    db.save_time_entry(entry.date, entry.hours, entry.hourly_rate, entry.hours_inputted, entry.rate_inputted)
     return {"status": "success"}
 
 
 @router.post("/generate")
-async def generate_invoice(request: Request, req: GenerateRequest, current_user: str = Depends(get_current_user)) -> StreamingResponse:
+async def generate_invoice(
+    request: Request, req: GenerateRequest, current_user: str = Depends(get_current_user)
+) -> StreamingResponse:
     db = request.app.state.db
     corp = db.get_corporation()
     bill_to = db.get_bill_to()
@@ -225,10 +227,10 @@ async def generate_invoice(request: Request, req: GenerateRequest, current_user:
         walk_dt = current_dt
         while walk_dt <= week_end_dt:
             date_str = walk_dt.strftime("%Y-%m-%d")
-            
+
             if date_str in entry_map:
                 entry = entry_map[date_str]
-                
+
                 if segment_rate is None:
                     # Start first segment
                     segment_rate = entry.hourly_rate
@@ -247,10 +249,10 @@ async def generate_invoice(request: Request, req: GenerateRequest, current_user:
                                 hour_rate=segment_rate,
                                 quantity=segment_hours,
                                 start_date=segment_start_dt,
-                                end_date=segment_end_dt
+                                end_date=segment_end_dt,
                             )
                         )
-                    
+
                     # Start new segment with new rate
                     segment_rate = entry.hourly_rate
                     segment_start_dt = walk_dt
@@ -265,7 +267,7 @@ async def generate_invoice(request: Request, req: GenerateRequest, current_user:
                             hour_rate=segment_rate,
                             quantity=segment_hours,
                             start_date=segment_start_dt,
-                            end_date=segment_end_dt
+                            end_date=segment_end_dt,
                         )
                     )
                     # Reset segment
@@ -273,17 +275,14 @@ async def generate_invoice(request: Request, req: GenerateRequest, current_user:
                     segment_hours = 0.0
                     segment_start_dt = None
                     segment_end_dt = None
-            
+
             walk_dt += timedelta(days=1)
-        
+
         # Close final segment of the week if exists
         if segment_rate is not None and segment_hours > 0:
             bills.append(
                 WeekBill(
-                    hour_rate=segment_rate,
-                    quantity=segment_hours,
-                    start_date=segment_start_dt,
-                    end_date=segment_end_dt
+                    hour_rate=segment_rate, quantity=segment_hours, start_date=segment_start_dt, end_date=segment_end_dt
                 )
             )
 

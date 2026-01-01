@@ -77,7 +77,9 @@ def generate_pdf_to_fp(
     pdf.output(output_fp)
 
 
-def _add_invoice_information(pdf: FPDF, corp_address: Address, invoice_number: int, invoice_date: datetime.date = None) -> None:
+def _add_invoice_information(
+    pdf: FPDF, corp_address: Address, invoice_number: int, invoice_date: datetime.date = None
+) -> None:
     pdf.cell(0, 5, corp_address.street, new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 5, f"{corp_address.city}, {corp_address.state} {corp_address.zip_code}", new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 5, corp_address.phone_number, new_x="LMARGIN", new_y="NEXT")
