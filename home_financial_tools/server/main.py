@@ -47,8 +47,10 @@ def create_application(config_path: str) -> FastAPI:
     # Register router
     app.include_router(router)
 
-    # Static files for web UI
-    app.mount("/", StaticFiles(directory="home_financial_tools/webgui", html=True), name="static")
+    # Static files for web UI - use absolute path
+    from pathlib import Path
+    webgui_path = Path(__file__).parent.parent / "webgui"
+    app.mount("/", StaticFiles(directory=str(webgui_path), html=True), name="static")
 
     return app
 
