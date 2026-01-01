@@ -14,8 +14,11 @@ RUN apk add --no-cache \
 # Copy project files
 COPY . .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir .
+# Install uv for faster pip installations
+RUN pip install --no-cache-dir uv
+
+# Install Python dependencies using uv
+RUN uv pip install --system --no-cache .
 
 # Create data directory for volume mounting
 RUN mkdir -p /data
