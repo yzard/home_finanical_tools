@@ -7,7 +7,7 @@ name = "home_financial_tools"
 description = "Home Financial Tools"
 requires-python = ">=3.10"
 authors = [{ name = "Zhuo Yin", email = "zhuoyin@gmail.com" }]
-dependencies = ["python-dateutil", "borb==2.1.25"]
+dependencies = ["python-dateutil", "fpdf2"]
 dynamic = ["version"]
 
 [project.scripts]

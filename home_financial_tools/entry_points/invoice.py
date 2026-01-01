@@ -8,17 +8,8 @@ from typing import Tuple, Optional, List
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from borb.pdf import Document
-from borb.pdf.page.page import Page
-from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable as Table
-from borb.pdf.canvas.layout.table.table import TableCell
-from borb.pdf.canvas.layout.text.paragraph import Paragraph
-from borb.pdf.canvas.layout.layout_element import Alignment
-from borb.pdf.canvas.color.color import HexColor, X11Color
-from borb.pdf.canvas.layout.page_layout.multi_column_layout import SingleColumnLayout
-from borb.pdf.pdf import PDF
-
-from decimal import Decimal
+from fpdf import FPDF
+from fpdf.fonts import FontFace
 
 DEFAULT_HOURLY_RATE = 225
 BILLING_ADDRESS = {
@@ -101,7 +92,6 @@ def main():
 
 def generate_invoice(args):
     start_date = args.start_date
-    font_size = Decimal(10)
 
     if not os.path.isdir(args.directory):
         raise NotADirectoryError(f"not directory: {args.directory}")
@@ -128,201 +118,148 @@ def generate_invoice(args):
 
     bill_address = Address(**BILLING_ADDRESS)
 
-    pdf = Document()
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("helvetica", size=10)
 
-    # Add page
-    page = Page()
-    pdf.add_page(page)
+    # Title
+    pdf.set_font("helvetica", "B", 24)
+    pdf.cell(0, 20, "INVOICE", align="L", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
 
-    page_layout = SingleColumnLayout(page)
-    page_layout.vertical_margin = page.get_page_info().get_height() * Decimal(0.02)
+    # Corp Name
+    pdf.set_font("helvetica", size=15)
+    pdf.cell(0, 10, corp_address.company_name, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", size=10)
 
-    page_layout.add(Paragraph("INVOICE", font_size=Decimal(20), text_alignment=Alignment.CENTERED))
+    # Invoice info
+    _add_invoice_information(pdf, corp_address, args.invoice_number)
+    pdf.ln(5)
 
-    # Empty paragraph for spacing
-    page_layout.add(Paragraph(" ", font_size=font_size))
+    # Billing info
+    _add_billing_and_shipping_information(pdf, bill_address, bill_address)
+    pdf.ln(5)
 
-    page_layout.add(Paragraph("Edward Tech Corporation", font_size=Decimal(15)))
+    # Itemized table
+    _add_itemized_description_table(pdf, bills)
+    pdf.ln(5)
 
-    # Invoice information table
-    page_layout.add(
-        _build_invoice_information(corp_address=corp_address, invoice_number=args.invoice_number, font_size=font_size)
+    pdf.set_font("helvetica", size=10)
+    pdf.set_font("helvetica", size=10)
+    pdf.cell(0, 10, f"Make all checks payable to {corp_address.company_name}", new_x="LMARGIN", new_y="NEXT")
+
+    # Align Terms and following text to the bottom
+    # Check if we have enough space to place it at the bottom without overlap
+    # Footer starts at -45 and is about 15mm high, plus "Make all checks payable" line.
+    # If the content already reached beyond -50, it's safer to just add a gap or a page break.
+    if pdf.get_y() > (pdf.h - 50):
+        pdf.ln(10)
+    else:
+        pdf.set_y(-45)
+
+    pdf.cell(0, 5, "Terms", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, "Thank you for your business!", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, f"Payment terms: Net {NET}", new_x="LMARGIN", new_y="NEXT")
+
+    output_path = os.path.join(
+        args.directory,
+        f"{corp_address.company_name.lower().replace(' ', '_')}_invoice_{args.invoice_number}_"
+        f"{start_date.strftime('%Y%m%d')}.pdf",
     )
-
-    # Empty paragraph for spacing
-    page_layout.add(Paragraph(" ", font_size=font_size))
-
-    # Billing and shipping information table
-    page_layout.add(
-        _build_billing_and_shipping_information(
-            bill_address=bill_address, shipping_address=bill_address, font_size=font_size
-        )
-    )
-
-    # Empty paragraph for spacing
-    page_layout.add(Paragraph(" "))
-
-    # Itemized description
-    page_layout.add(_build_itemized_description_table(bills=bills, font_size=font_size))
-
-    page_layout.add(Paragraph(f"Make all checks payable to {corp_address.company_name}"))
-
-    padding = max(0, args.padding - len(bills))
-    for i in range(padding):
-        page_layout.add(Paragraph(f" "))
-
-    page_layout.add(Paragraph(f"Terms", font_size=font_size))
-    page_layout.add(Paragraph(f"Thank you for your business!", font_size=font_size))
-    page_layout.add(Paragraph(f"Payment terms: Net {NET}", font_size=font_size))
-
-    buf = io.BytesIO()
-    PDF.dumps(buf, pdf)
-
-    with open(
-            os.path.join(
-                args.directory,
-                f"{corp_address.company_name.lower().replace(' ', '_')}_invoice_{args.invoice_number}_"
-                f"{start_date.strftime('%Y%m%d')}.pdf",
-            ),
-            "wb",
-    ) as f:
-        f.write(buf.getvalue())
+    pdf.output(output_path)
 
 
-def _build_invoice_information(corp_address: Address, invoice_number: int, font_size: Decimal):
-    table_001 = Table(number_of_rows=6, number_of_columns=1)
-
-    table_001.add(Paragraph(corp_address.street, font_size=font_size))
-    table_001.add(Paragraph(f"{corp_address.city}, {corp_address.state} {corp_address.zip_code}", font_size=font_size))
-    table_001.add(Paragraph(corp_address.phone_number, font_size=font_size))
-
-    table_001.add(Paragraph(" ", font_size=font_size))
-
-    table_001.add(
-        Paragraph(
-            f"Date: {datetime.now().strftime('%Y-%m-%d')}",
-            font="Helvetica-Bold",
-            font_size=font_size,
-            horizontal_alignment=Alignment.LEFT,
-        )
-    )
-    table_001.add(
-        Paragraph(
-            f"Invoice # {invoice_number}",
-            font="Helvetica-Bold",
-            font_size=font_size,
-            horizontal_alignment=Alignment.LEFT,
-        )
-    )
-
-    table_001.set_padding_on_all_cells(Decimal(2), Decimal(2), Decimal(2), Decimal(2))
-    table_001.no_borders()
-    return table_001
+def _add_invoice_information(pdf: FPDF, corp_address: Address, invoice_number: int):
+    pdf.cell(0, 5, corp_address.street, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, f"{corp_address.city}, {corp_address.state} {corp_address.zip_code}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, corp_address.phone_number, new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(5)
+    
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(0, 5, f"Date: {datetime.now().strftime('%Y-%m-%d')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, f"Invoice # {invoice_number}", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", size=10)
 
 
-def _build_billing_and_shipping_information(bill_address: Address, shipping_address: Address, font_size: Decimal):
-    table_001 = Table(number_of_rows=5, number_of_columns=2)
-    table_001.add(
-        Paragraph("BILL TO", background_color=HexColor("263238"), font_color=X11Color("White"), font_size=font_size)
-    )
-    table_001.add(
-        Paragraph("SHIP TO", background_color=HexColor("263238"), font_color=X11Color("White"), font_size=font_size)
-    )
-    table_001.add(Paragraph(bill_address.company_name, font_size=font_size))
-    table_001.add(Paragraph(shipping_address.company_name, font_size=font_size))
-    table_001.add(Paragraph(bill_address.recipient, font_size=font_size))
-    table_001.add(Paragraph(shipping_address.recipient, font_size=font_size))
-    table_001.add(Paragraph(bill_address.street, font_size=font_size))
-    table_001.add(Paragraph(shipping_address.street, font_size=font_size))
-    table_001.add(Paragraph(f"{bill_address.city}, {bill_address.state} {bill_address.zip_code}", font_size=font_size))
-    table_001.add(
-        Paragraph(f"{shipping_address.city}, {shipping_address.state} {shipping_address.zip_code}", font_size=font_size)
-    )
-    table_001.set_padding_on_all_cells(Decimal(2), Decimal(2), Decimal(2), Decimal(2))
-    table_001.no_borders()
-    return table_001
+def _add_billing_and_shipping_information(pdf: FPDF, bill_address: Address, shipping_address: Address):
+    headings = ["BILL TO", "SHIP TO"]
+    
+    # Header row
+    pdf.set_font("helvetica", "B", 10)
+    pdf.set_fill_color(0, 0, 0)
+    pdf.set_text_color(255, 255, 255)
+    
+    col_width = pdf.epw / 2
+    # Add gap between the two boxes
+    box_width = col_width - 2
+    
+    pdf.cell(box_width, 8, headings[0], fill=True)
+    pdf.set_x(pdf.get_x() + 4) # Gap
+    pdf.cell(box_width, 8, headings[1], fill=True, new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("helvetica", size=10)
+    
+    # Content rows
+    rows = [
+        (bill_address.company_name, shipping_address.company_name),
+        (bill_address.recipient, shipping_address.recipient),
+        (bill_address.street, shipping_address.street),
+        (f"{bill_address.city}, {bill_address.state} {bill_address.zip_code}", 
+         f"{shipping_address.city}, {shipping_address.state} {shipping_address.zip_code}")
+    ]
+    
+    for r1, r2 in rows:
+        pdf.cell(col_width, 5, r1)
+        pdf.cell(col_width, 5, r2, new_x="LMARGIN", new_y="NEXT")
 
 
-def _build_itemized_description_table(bills: List[WeekBill], font_size: Decimal):
-    total_number_rows = len(bills) + 2
-    total_number_columns = 6
-    table_001 = Table(number_of_rows=total_number_rows, number_of_columns=total_number_columns)
-
-    odd_color = HexColor("BBBBBB")
-    even_color = HexColor("FFFFFF")
-    column_name_color = HexColor("000000")
-    table_001.add(
-        TableCell(
-            Paragraph("QUANTITY", font_color=X11Color("White"), font_size=font_size, text_alignment=Alignment.RIGHT),
-            background_color=column_name_color,
-        )
-    )
-    table_001.add(
-        TableCell(
-            Paragraph("DESCRIPTION", font_color=X11Color("White"), font_size=font_size, text_alignment=Alignment.RIGHT),
-            background_color=column_name_color,
-            column_span=3,
-        )
-    )
-    table_001.add(
-        TableCell(
-            Paragraph("UNIT PRICE", font_color=X11Color("White"), font_size=font_size, text_alignment=Alignment.RIGHT),
-            background_color=column_name_color,
-        )
-    )
-    table_001.add(
-        TableCell(
-            Paragraph("AMOUNT", font_color=X11Color("White"), font_size=font_size, text_alignment=Alignment.RIGHT),
-            background_color=column_name_color,
-        )
-    )
-
+def _add_itemized_description_table(pdf: FPDF, bills: List[WeekBill]):
+    pdf.set_font("helvetica", "B", 10)
+    pdf.set_fill_color(0, 0, 0)
+    pdf.set_text_color(255, 255, 255)
+    
+    # Header columns: QUANTITY (15%), DESCRIPTION (55%), UNIT PRICE (15%), AMOUNT (15%)
+    cols = [
+        ("QUANTITY", 0.15),
+        ("DESCRIPTION", 0.55),
+        ("UNIT PRICE", 0.15),
+        ("AMOUNT", 0.15)
+    ]
+    
+    for label, width_pct in cols:
+        pdf.cell(pdf.epw * width_pct, 8, label, fill=True, align="R")
+    pdf.ln()
+    
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("helvetica", size=10)
+    
     total_amount = 0
-    for row_number, bill in enumerate(bills):
-        c = even_color if row_number % 2 == 0 else odd_color
-
-        table_001.add(
-            TableCell(
-                Paragraph(f"{bill.quantity:.1f}", font_size=font_size, text_alignment=Alignment.RIGHT),
-                background_color=c,
-            )
-        )
-        table_001.add(
-            TableCell(
-                Paragraph(
-                    bill.start_date.strftime("%B %d %Y") + " - " + bill.end_date.strftime("%B %d %Y"),
-                    font_size=font_size,
-                    text_alignment=Alignment.RIGHT,
-                ),
-                background_color=c,
-                column_span=3,
-            )
-        )
-        table_001.add(
-            TableCell(
-                Paragraph(f"${bill.hour_rate:,.2f}", font_size=font_size, text_alignment=Alignment.RIGHT),
-                background_color=c,
-            )
-        )
-        table_001.add(
-            TableCell(
-                Paragraph(
-                    f"${bill.hour_rate * bill.quantity:,.2f}", font_size=font_size, text_alignment=Alignment.RIGHT
-                ),
-                background_color=c,
-            )
-        )
+    for i, bill in enumerate(bills):
+        if i % 2 == 1:
+            pdf.set_fill_color(245, 245, 245) # Very light gray #F5F5F5
+        else:
+            pdf.set_fill_color(255, 255, 255)
+            
+        qty = f"{bill.quantity:.1f}"
+        desc = f"{bill.start_date.strftime('%B %d %Y')} - {bill.end_date.strftime('%B %d %Y')}"
+        price = f"${bill.hour_rate:,.2f}"
+        amount = f"${bill.hour_rate * bill.quantity:,.2f}"
+        
+        pdf.cell(pdf.epw * 0.15, 8, qty, fill=True, align="L")
+        pdf.cell(pdf.epw * 0.55, 8, desc, fill=True, align="R")
+        pdf.cell(pdf.epw * 0.15, 8, price, fill=True, align="R")
+        pdf.cell(pdf.epw * 0.15, 8, amount, fill=True, align="R")
+        pdf.ln()
+        
         total_amount += bill.hour_rate * bill.quantity
+        
+    # Total row
+    pdf.set_font("helvetica", "B", 10)
+    pdf.cell(pdf.epw * 0.85, 8, "Total", align="R")
+    pdf.cell(pdf.epw * 0.15, 8, f"${total_amount:,.2f}", align="R")
+    pdf.ln()
 
-    table_001.add(
-        TableCell(
-            Paragraph("Total", font="Helvetica-Bold", font_size=font_size, horizontal_alignment=Alignment.RIGHT),
-            column_span=5,
-        )
-    )
-    table_001.add(
-        TableCell(Paragraph(f"${total_amount:,.2f}", font_size=font_size, horizontal_alignment=Alignment.RIGHT))
-    )
-    table_001.set_padding_on_all_cells(Decimal(2), Decimal(2), Decimal(2), Decimal(2))
-    table_001.no_borders()
-    return table_001
+
+if __name__ == "__main__":
+    main()
