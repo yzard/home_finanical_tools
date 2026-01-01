@@ -9,13 +9,12 @@ WORKDIR /app
 RUN apk add --no-cache \
     build-base \
     su-exec \
-    shadow
+    shadow \
+    uv
 
 # Copy project files
 COPY . .
 
-# Install uv for faster pip installations
-RUN pip install --no-cache-dir uv
 
 # Install Python dependencies using uv
 RUN uv pip install --system --no-cache .
