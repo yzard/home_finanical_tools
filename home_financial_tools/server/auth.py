@@ -1,4 +1,3 @@
-import hashlib
 import secrets
 from typing import Dict, Optional
 
@@ -77,9 +76,9 @@ def get_current_user(request: Request) -> str:
     if not token:
         raise AuthenticationError()
 
-    # Validate token against active sessions
-    sessions = request.app.state.sessions
-    username = sessions.get(token)
+    # Validate token against database sessions
+    db = request.app.state.db
+    username = db.get_session(token)
 
     if not username:
         raise AuthenticationError()

@@ -82,9 +82,11 @@ async def login(request: Request, login_data: LoginRequest) -> LoginResponse:
     if not verify_password(login_data.password, password_hash):
         raise HTTPException(status_code=403, detail="Invalid credentials")
 
-    # Generate session token
+    # Generate session token and save to database
+    db = request.app.state.db
     token = generate_session_token()
-    request.app.state.sessions[token] = login_data.username
+    expires_at = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    db.save_session(token, login_data.username, expires_at)
 
     return LoginResponse(token=token, username=login_data.username)
 
@@ -94,11 +96,11 @@ async def logout(request: Request, current_user: str = Depends(get_current_user)
     """
     Invalidate current session token.
     """
-    # Get token from header
+    # Get token from header and delete from database
     token = request.headers.get("X-Auth-Token")
-
-    if token and token in request.app.state.sessions:
-        del request.app.state.sessions[token]
+    if token:
+        db = request.app.state.db
+        db.delete_session(token)
 
     return {"status": "success"}
 

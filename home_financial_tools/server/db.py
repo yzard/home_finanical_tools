@@ -77,6 +77,17 @@ class Database:
                 )
             """
             )
+            # Sessions table for persistent authentication
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY
+                  , username TEXT NOT NULL
+                  , created_at TEXT NOT NULL
+                  , expires_at TEXT NOT NULL
+                )
+            """
+            )
             # Migration: add columns if they don't exist
             try:
                 cursor.execute("ALTER TABLE time_entries ADD COLUMN hours_inputted INTEGER DEFAULT 0")
@@ -321,4 +332,51 @@ class Database:
                 ) VALUES (?, ?)
             """
             cursor.execute(sql, (key, value))
+            conn.commit()
+
+    def save_session(self, token: str, username: str, expires_at: str) -> None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                INSERT OR REPLACE INTO sessions (
+                    token
+                  , username
+                  , created_at
+                  , expires_at
+                ) VALUES (?, ?, datetime('now'), ?)
+            """
+            cursor.execute(sql, (token, username, expires_at))
+            conn.commit()
+
+    def get_session(self, token: str) -> Optional[str]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                SELECT username
+                  FROM sessions
+                 WHERE token = ?
+                   AND expires_at > datetime('now')
+            """
+            cursor.execute(sql, (token,))
+            row = cursor.fetchone()
+            return row[0] if row else None
+
+    def delete_session(self, token: str) -> None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                DELETE FROM sessions
+                 WHERE token = ?
+            """
+            cursor.execute(sql, (token,))
+            conn.commit()
+
+    def cleanup_expired_sessions(self) -> None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                DELETE FROM sessions
+                 WHERE expires_at <= datetime('now')
+            """
+            cursor.execute(sql)
             conn.commit()

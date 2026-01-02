@@ -46,7 +46,6 @@ def create_application(config_path: str) -> FastAPI:
     from home_financial_tools.server.auth import load_users
 
     app.state.allowed_users = load_users(config.model_dump())
-    app.state.sessions = {}  # {token: username}
 
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
