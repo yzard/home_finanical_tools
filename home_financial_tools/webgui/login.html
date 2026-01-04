@@ -239,6 +239,24 @@
             errorMessage.classList.remove('show');
         }
 
+        // Check for error parameter in URL (from redirects)
+        function checkUrlError() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            if (error === 'session_expired') {
+                showError('Your session has expired. Please sign in again.');
+            } else if (error === 'access_denied') {
+                showError('Access denied. Please sign in with valid credentials.');
+            }
+            // Clean URL without reloading (remove error param)
+            if (error) {
+                window.history.replaceState({}, document.title, '/login.html');
+            }
+        }
+
+        // Check for URL errors on page load
+        checkUrlError();
+
         function setCookie(name, value, days) {
             const expires = new Date();
             expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);

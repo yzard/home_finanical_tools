@@ -638,6 +638,9 @@
         if (!checkAuth()) {
             // Will redirect to login
         } else {
+            // Configure axios defaults
+            axios.defaults.timeout = 30000; // 30 second timeout
+
             // Setup axios interceptor for authentication
             const authToken = getCookie('auth_token');
             axios.interceptors.request.use(config => {
@@ -645,16 +648,36 @@
                 return config;
             });
 
-            // Setup axios interceptor for 403 responses
+            // Setup axios interceptor for error responses
             axios.interceptors.response.use(
                 response => response,
                 error => {
-                    if (error.response && error.response.status === 403) {
-                        // Clear cookies and redirect to login
+                    // Handle network errors and timeouts
+                    if (!error.response) {
+                        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                            alert('Connection timeout: Unable to reach the server. Please check your network connection and try again.');
+                        } else {
+                            alert('Connection error: Unable to connect to the backend server. Please check if the server is running.');
+                        }
+                        return Promise.reject(error);
+                    }
+
+                    // Handle authentication errors (401 Unauthorized)
+                    if (error.response.status === 401) {
                         deleteCookie('auth_token');
                         deleteCookie('auth_username');
-                        window.location.href = '/login.html';
+                        window.location.href = '/login.html?error=session_expired';
+                        return Promise.reject(error);
                     }
+
+                    // Handle authorization errors (403 Forbidden)
+                    if (error.response.status === 403) {
+                        deleteCookie('auth_token');
+                        deleteCookie('auth_username');
+                        window.location.href = '/login.html?error=access_denied';
+                        return Promise.reject(error);
+                    }
+
                     return Promise.reject(error);
                 }
             );
