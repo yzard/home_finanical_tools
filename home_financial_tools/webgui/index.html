@@ -447,11 +447,16 @@
             </div>
         </div>
 
-        <div class="actions" style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start;">
+        <div class="actions" style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start; flex-wrap: wrap; gap: 1rem;">
             <button @click="generateHalfMonth('first')" class="btn btn-primary"
                 style="padding: 1rem 1.5rem; font-size: 1rem;">Generate First Half (1-15)</button>
             <button @click="generateHalfMonth('second')" class="btn btn-primary"
                 style="padding: 1rem 1.5rem; font-size: 1rem;">Generate Second Half (16-End)</button>
+            <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
+                :disabled="sending_email || !email_settings.has_password"
+                style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                {{ sending_email ? 'Sending...' : 'Send Monthly Invoice Email' }}
+            </button>
         </div>
 
         <div class="card" style="margin-bottom: 2rem;">
@@ -564,6 +569,45 @@
                 <button @click="saveBillTo" class="btn btn-primary">Save Bill To</button>
             </div>
         </div>
+
+        <!-- Email Settings -->
+        <div class="card" style="margin-top: 2rem;">
+            <h2>Email Settings</h2>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Gmail Account (for login)</label>
+                    <input v-model="email_settings.gmail_account" type="email" placeholder="your.account@gmail.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Gmail App Password</label>
+                    <input v-model="email_settings.gmail_app_password" type="password"
+                        :placeholder="email_settings.has_password ? '(saved - enter new to change)' : 'Enter app password'">
+                </div>
+            </div>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>From Email (sender address/alias)</label>
+                    <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>CC Email (Optional)</label>
+                    <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
+                </div>
+            </div>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>To Email</label>
+                    <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                <button @click="saveEmailSettings" class="btn btn-primary">Save Email Settings</button>
+                <small style="color: var(--text-muted); font-size: 0.75rem;">
+                    Generate app password at: Google Account &gt; Security &gt; App Passwords
+                </small>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -625,7 +669,16 @@
                     currentDate: new Date(),
                     calendarDays: [],
                     default_hourly_rate: 225,
-                    username: getCookie('auth_username') || 'User'
+                    username: getCookie('auth_username') || 'User',
+                    email_settings: {
+                        gmail_account: '',
+                        from_email: '',
+                        to_email: '',
+                        cc_email: '',
+                        gmail_app_password: '',
+                        has_password: false
+                    },
+                    sending_email: false
                 }
             },
             computed: {
@@ -658,9 +711,65 @@
                             this.invoice_number = parseInt(invRes.data.value);
                         }
 
+                        // Load email settings
+                        await this.loadEmailSettings();
+
                         this.renderCalendar();
                     } catch (e) {
                         console.error(e);
+                    }
+                },
+                async loadEmailSettings() {
+                    try {
+                        const res = await axios.post('/api/email_settings/get');
+                        this.email_settings.gmail_account = res.data.gmail_account || '';
+                        this.email_settings.from_email = res.data.from_email || '';
+                        this.email_settings.to_email = res.data.to_email || '';
+                        this.email_settings.cc_email = res.data.cc_email || '';
+                        this.email_settings.has_password = res.data.has_password || false;
+                    } catch (e) {
+                        console.error('Failed to load email settings:', e);
+                    }
+                },
+                async saveEmailSettings() {
+                    try {
+                        await axios.post('/api/email_settings/set', {
+                            gmail_account: this.email_settings.gmail_account,
+                            from_email: this.email_settings.from_email,
+                            to_email: this.email_settings.to_email,
+                            cc_email: this.email_settings.cc_email,
+                            gmail_app_password: this.email_settings.gmail_app_password
+                        });
+                        if (this.email_settings.gmail_app_password) {
+                            this.email_settings.has_password = true;
+                        }
+                        this.email_settings.gmail_app_password = '';
+                        alert('Email settings saved');
+                    } catch (e) {
+                        alert('Error saving email settings: ' + (e.response?.data?.detail || e.message));
+                    }
+                },
+                async sendMonthlyInvoiceEmail() {
+                    const year = this.currentDate.getFullYear();
+                    const month = this.currentDate.getMonth() + 1;
+
+                    try {
+                        this.sending_email = true;
+
+                        const res = await axios.post('/api/send_email', {
+                            invoice_number: this.invoice_number,
+                            month: month,
+                            year: year
+                        });
+
+                        alert(res.data.message);
+
+                        // Update invoice number from response
+                        this.invoice_number = res.data.new_invoice_number;
+                    } catch (e) {
+                        alert('Error sending email: ' + (e.response?.data?.detail || e.message));
+                    } finally {
+                        this.sending_email = false;
                     }
                 },
                 async saveDefaultRate() {

@@ -1,4 +1,7 @@
+import argparse
+import logging
 import os
+from pathlib import Path
 
 import uvicorn
 import yaml
@@ -8,17 +11,19 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from home_financial_tools.server.auth import load_users
+from home_financial_tools.server.config import Config
 from home_financial_tools.server.db import Database
+from home_financial_tools.server.exceptions import setup_exception_handlers
 from home_financial_tools.server.router import router
+
+logger = logging.getLogger(__name__)
 
 
 def create_application(config_path: str) -> FastAPI:
     """Application factory for the Invoice Web Service."""
     with open(config_path, "r") as f:
         config_dict = yaml.safe_load(f)
-
-    # Validate config with Pydantic
-    from home_financial_tools.server.config import Config
 
     try:
         config = Config(**config_dict)
@@ -43,45 +48,52 @@ def create_application(config_path: str) -> FastAPI:
     app.state.db = Database(db_path)
 
     # Authentication setup
-    from home_financial_tools.server.auth import load_users
-
     app.state.allowed_users = load_users(config.model_dump())
 
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    # Setup global exception handler
+    setup_exception_handlers(app)
+
     # Register router
     app.include_router(router)
 
     # Static files for web UI - use absolute path
-    from pathlib import Path
-
     webgui_path = Path(__file__).parent.parent / "webgui"
     app.mount("/", StaticFiles(directory=str(webgui_path), html=True), name="static")
 
+    logger.info("Application created successfully")
     return app
 
 
 def main() -> None:
     """Main entrypoint for the server."""
-    config_path = os.environ.get("CONFIG_PATH", "sample/config.yaml")
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    parser = argparse.ArgumentParser(description="Invoice Web Service")
+    parser.add_argument("--config", "-c", default="sample/config.yaml", help="Path to configuration file")
+    parser.add_argument("--host", "-H", default=None, help="Host to bind to (overrides config)")
+    parser.add_argument("--port", "-p", type=int, default=None, help="Port to bind to (overrides config)")
+    args = parser.parse_args()
+
+    logger.info(f"Loading config from {args.config}")
 
     # Load and validate config for server settings
-    with open(config_path, "r") as f:
+    with open(args.config, "r") as f:
         config_dict = yaml.safe_load(f)
-
-    from home_financial_tools.server.config import Config
 
     try:
         config = Config(**config_dict)
     except Exception as e:
         raise ValueError(f"Invalid configuration: {e}") from e
 
-    host = os.environ.get("HOST", config.server.host)
-    port = int(os.environ.get("PORT", config.server.port))
+    host = args.host if args.host else config.server.host
+    port = args.port if args.port else config.server.port
 
-    app = create_application(config_path)
+    app = create_application(args.config)
     uvicorn.run(app, host=host, port=port)
 
 

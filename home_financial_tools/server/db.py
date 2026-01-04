@@ -88,6 +88,24 @@ class Database:
                 )
             """
             )
+            # Email settings table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS email_settings (
+                    id INTEGER PRIMARY KEY
+                  , gmail_account TEXT
+                  , from_email TEXT
+                  , to_email TEXT
+                  , cc_email TEXT
+                  , gmail_app_password TEXT
+                )
+            """
+            )
+            # Migration: add gmail_account column if it doesn't exist
+            try:
+                cursor.execute("ALTER TABLE email_settings ADD COLUMN gmail_account TEXT")
+            except sqlite3.OperationalError:
+                pass
             # Migration: add columns if they don't exist
             try:
                 cursor.execute("ALTER TABLE time_entries ADD COLUMN hours_inputted INTEGER DEFAULT 0")
@@ -379,4 +397,55 @@ class Database:
                  WHERE expires_at <= datetime('now')
             """
             cursor.execute(sql)
+            conn.commit()
+
+    def get_email_settings(self) -> Optional[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                SELECT id
+                     , gmail_account
+                     , from_email
+                     , to_email
+                     , cc_email
+                     , gmail_app_password
+                  FROM email_settings
+                 WHERE id = 1
+            """
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "id": row[0],
+                    "gmail_account": row[1],
+                    "from_email": row[2],
+                    "to_email": row[3],
+                    "cc_email": row[4],
+                    "gmail_app_password": row[5],
+                }
+            return None
+
+    def save_email_settings(self, data: Dict[str, Any]) -> None:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                INSERT OR REPLACE INTO email_settings (
+                    id
+                  , gmail_account
+                  , from_email
+                  , to_email
+                  , cc_email
+                  , gmail_app_password
+                ) VALUES (1, ?, ?, ?, ?, ?)
+            """
+            cursor.execute(
+                sql,
+                (
+                    data.get("gmail_account"),
+                    data.get("from_email"),
+                    data.get("to_email"),
+                    data.get("cc_email"),
+                    data.get("gmail_app_password"),
+                ),
+            )
             conn.commit()

@@ -18,3 +18,12 @@ packages = ["home_financial_tools"]
 
 [tool.setuptools.dynamic]
 version = {attr = "home_financial_tools.__version__"}
+
+[tool.black]
+line-length = 120
+skip-string-normalization = true
+skip-magic-trailing-comma = true
+
+[tool.isort]
+profile = "black"
+line_length = 120
