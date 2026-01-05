@@ -295,23 +295,7 @@ async def generate_invoice(
                     segment_start_dt = walk_dt
                     segment_end_dt = walk_dt
                     segment_hours = entry.hours
-            else:
-                # No entry for this day (gap)
-                # Close current segment if exists
-                if segment_rate is not None:
-                    bills.append(
-                        WeekBill(
-                            hour_rate=segment_rate,
-                            quantity=segment_hours,
-                            start_date=segment_start_dt,
-                            end_date=segment_end_dt,
-                        )
-                    )
-                    # Reset segment
-                    segment_rate = None
-                    segment_hours = 0.0
-                    segment_start_dt = None
-                    segment_end_dt = None
+            # If no entry for this day, just skip (don't close segment - only close on rate change or end of week)
 
             walk_dt += timedelta(days=1)
 
@@ -548,20 +532,7 @@ def _generate_invoice_pdf(
                     segment_start_dt = walk_dt
                     segment_end_dt = walk_dt
                     segment_hours = entry["hours"]
-            else:
-                if segment_rate is not None:
-                    bills.append(
-                        WeekBill(
-                            hour_rate=segment_rate,
-                            quantity=segment_hours,
-                            start_date=segment_start_dt,
-                            end_date=segment_end_dt,
-                        )
-                    )
-                    segment_rate = None
-                    segment_hours = 0.0
-                    segment_start_dt = None
-                    segment_end_dt = None
+            # If no entry for this day, just skip (don't close segment - only close on rate change or end of week)
             walk_dt += timedelta(days=1)
 
         # Close final segment of the week if exists, or create 0-hour entry if no entries in week
