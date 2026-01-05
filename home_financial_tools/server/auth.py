@@ -1,8 +1,11 @@
+import logging
 import secrets
 from typing import Dict, Optional
 
 import bcrypt
 from fastapi import HTTPException, Request, status
+
+logger = logging.getLogger(__name__)
 
 
 class AuthenticationError(HTTPException):
@@ -12,25 +15,44 @@ class AuthenticationError(HTTPException):
         super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication credentials")
 
 
-def load_users(config: dict) -> Dict[str, bytes]:
+def load_users_from_db(db, config: dict) -> Dict[str, bytes]:
     """
-    Load users from config and hash their passwords with bcrypt.
+    Load users from database, syncing with config file.
+
+    On first run, users from config are hashed and stored in database.
+    On subsequent runs, users are loaded from database (no rehashing).
+    If new users are added to config, they are added to database.
+
+    To change a password: Delete the user from the database, then restart
+    the server. The user will be re-added from config with the new password.
 
     Args:
+        db: Database instance
         config: Configuration dictionary containing 'allowed_users'
 
     Returns:
-        Dictionary mapping username to bcrypt password hash
+        Dictionary mapping username to bcrypt password hash from database
     """
-    allowed_users = config.get("allowed_users", {})
-    hashed_users = {}
+    config_users = config.get("allowed_users", {})
+    logger.info(f"Found {len(config_users)} users in config: {list(config_users.keys())}")
 
-    for username, password in allowed_users.items():
-        # Hash the password with bcrypt
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        hashed_users[username] = password_hash
+    # Get existing users from database
+    db_users = db.get_all_users()
+    logger.info(f"Found {len(db_users)} users in database: {list(db_users.keys())}")
 
-    return hashed_users
+    # Sync: Add any config users that aren't in database
+    for username, password in config_users.items():
+        if username not in db_users:
+            logger.info(f"New user '{username}' found in config, hashing and storing in database")
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            db.save_user(username, password_hash)
+            db_users[username] = password_hash
+        else:
+            logger.debug(f"User '{username}' already exists in database, using stored hash")
+
+    # Return all users from database
+    logger.info(f"Successfully loaded {len(db_users)} users from database")
+    return db_users
 
 
 def verify_password(password: str, password_hash: bytes) -> bool:

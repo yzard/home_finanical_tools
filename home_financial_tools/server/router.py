@@ -96,17 +96,26 @@ async def login(request: Request, login_data: LoginRequest) -> LoginResponse:
     Authenticate user and return session token.
     Rate limited to 5 attempts per minute per IP.
     """
+    logger.info(f"Login attempt for username: {login_data.username}")
+
     # Get user credentials
     allowed_users = request.app.state.allowed_users
+    logger.info(f"Available users: {list(allowed_users.keys())}")
 
     # Check if user exists
     if login_data.username not in allowed_users:
+        logger.warning(f"User not found: {login_data.username}")
         raise HTTPException(status_code=403, detail="Invalid credentials")
 
     # Verify password
     password_hash = allowed_users[login_data.username]
+    logger.info(f"Verifying password for user: {login_data.username}, hash type: {type(password_hash)}")
+
     if not verify_password(login_data.password, password_hash):
+        logger.warning(f"Password verification failed for user: {login_data.username}")
         raise HTTPException(status_code=403, detail="Invalid credentials")
+
+    logger.info(f"Password verified successfully for user: {login_data.username}")
 
     # Generate session token and save to database
     db = request.app.state.db
@@ -114,6 +123,7 @@ async def login(request: Request, login_data: LoginRequest) -> LoginResponse:
     expires_at = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
     db.save_session(token, login_data.username, expires_at)
 
+    logger.info(f"Session created for user: {login_data.username}")
     return LoginResponse(token=token, username=login_data.username)
 
 

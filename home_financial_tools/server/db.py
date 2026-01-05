@@ -18,6 +18,17 @@ class Database:
     def _init_db(self) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            # Users table for authentication
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    username TEXT PRIMARY KEY
+                  , password_hash BLOB NOT NULL
+                  , created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                  , updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """
+            )
             # Corporation table
             cursor.execute(
                 """
@@ -454,3 +465,62 @@ class Database:
                 ),
             )
             conn.commit()
+
+    def get_user(self, username: str) -> Optional[bytes]:
+        """
+        Get hashed password for a user.
+
+        Args:
+            username: Username to look up
+
+        Returns:
+            Password hash as bytes, or None if user not found
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                SELECT password_hash
+                  FROM users
+                 WHERE username = ?
+            """
+            cursor.execute(sql, (username,))
+            row = cursor.fetchone()
+            return row[0] if row else None
+
+    def save_user(self, username: str, password_hash: bytes) -> None:
+        """
+        Save or update a user's hashed password.
+
+        Args:
+            username: Username
+            password_hash: Bcrypt password hash as bytes
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                INSERT OR REPLACE INTO users (
+                    username
+                  , password_hash
+                  , updated_at
+                ) VALUES (?, ?, datetime('now'))
+            """
+            cursor.execute(sql, (username, password_hash))
+            conn.commit()
+
+    def get_all_users(self) -> Dict[str, bytes]:
+        """
+        Get all users and their password hashes.
+
+        Returns:
+            Dictionary mapping username to password hash
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            sql = """
+                SELECT username
+                     , password_hash
+                  FROM users
+            """
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            return {row[0]: row[1] for row in rows}

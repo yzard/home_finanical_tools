@@ -11,7 +11,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from home_financial_tools.server.auth import load_users
+from home_financial_tools.server.auth import load_users_from_db
 from home_financial_tools.server.config import Config
 from home_financial_tools.server.db import Database
 from home_financial_tools.server.exceptions import setup_exception_handlers
@@ -47,8 +47,8 @@ def create_application(config_path: str) -> FastAPI:
     app.state.config = config
     app.state.db = Database(db_path)
 
-    # Authentication setup
-    app.state.allowed_users = load_users(config.model_dump())
+    # Authentication setup - load users from database, syncing with config
+    app.state.allowed_users = load_users_from_db(app.state.db, config.model_dump())
 
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
