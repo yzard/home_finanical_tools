@@ -74,7 +74,12 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     parser = argparse.ArgumentParser(description="Invoice Web Service")
-    parser.add_argument("--config", "-c", default="sample/config.yaml", help="Path to configuration file")
+    parser.add_argument(
+        "--config",
+        "-c",
+        default=os.environ.get("CONFIG_PATH", "sample/config.yaml"),
+        help="Path to configuration file",
+    )
     parser.add_argument("--host", "-H", default=None, help="Host to bind to (overrides config)")
     parser.add_argument("--port", "-p", type=int, default=None, help="Port to bind to (overrides config)")
     args = parser.parse_args()

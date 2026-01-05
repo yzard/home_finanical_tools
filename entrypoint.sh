@@ -26,4 +26,4 @@ chown -R abc:abc /data 2>/dev/null || true
 echo "Running as user abc ($(id abc))"
 
 # Execute the application as the specified user
-exec su-exec abc:abc python -m home_financial_tools.server.main
+exec su-exec abc:abc python -m home_financial_tools.server.main --config "${CONFIG_PATH:-sample/config.yaml}"
