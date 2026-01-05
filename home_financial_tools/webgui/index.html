@@ -59,12 +59,19 @@
             margin-bottom: 2.5rem;
             flex-wrap: wrap;
             gap: 1rem;
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            z-index: 10;
         }
 
         .header-left {
             display: flex;
             align-items: center;
             gap: 2rem;
+            flex: 1;
         }
 
         .nav-tabs {
@@ -361,6 +368,12 @@
             margin-bottom: 1.5rem;
         }
 
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
         .month-selector .btn {
             background: var(--card-bg);
             color: var(--text);
@@ -404,35 +417,27 @@
                 max-width: 100%;
             }
 
-            h1 {
-                font-size: 1.75rem;
-                margin-bottom: 1.5rem;
-            }
-
             .header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1.5rem;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0;
                 margin-bottom: 2rem;
             }
 
             .header h1 {
-                margin-bottom: 0.5rem;
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 1.25rem;
+                margin: 0;
+                white-space: nowrap;
             }
 
             .header-left {
-                width: 100%;
-                justify-content: space-between;
-                flex-direction: row;
-                /* Keep title and tab button side by side or title top */
-            }
-
-            /* Stack layout for mobile header */
-            .header-content {
-                display: flex;
-                width: 100%;
-                justify-content: space-between;
-                align-items: center;
+                width: auto;
+                flex: 0;
+                justify-content: flex-start;
             }
 
             .nav-tabs {
@@ -441,11 +446,84 @@
 
             .mobile-tab-selector {
                 display: block;
+                z-index: 20;
+            }
+
+            .mobile-tab-trigger {
+                min-width: auto;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
             }
 
             .user-info {
                 width: auto;
+                flex: 0;
                 justify-content: flex-end;
+                z-index: 20;
+            }
+
+            .username {
+                display: none;
+                /* Hide username on small header if needed, or keep discrete */
+            }
+
+            .btn-logout {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            /* Single row for action buttons */
+            .actions {
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 0.5rem;
+                margin-bottom: 1rem !important;
+            }
+
+            .actions .btn {
+                flex: 1;
+                padding: 0.6rem 0.4rem !important;
+                font-size: 0.65rem !important;
+                min-height: auto !important;
+                white-space: nowrap;
+            }
+
+            /* Monthly Time Log in one row */
+            .card-header-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+                margin-bottom: 1.5rem;
+                flex-wrap: nowrap;
+            }
+
+            .card-header-row h2 {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                font-size: 0.9rem !important;
+                white-space: nowrap;
+            }
+
+            .month-selector {
+                margin: 0 !important;
+                gap: 0.4rem !important;
+                flex-wrap: nowrap !important;
+            }
+
+            .month-selector .btn {
+                padding: 0.3rem 0.5rem !important;
+                font-size: 0.7rem !important;
+                min-height: auto !important;
+            }
+
+            .month-selector span {
+                font-size: 0.8rem !important;
+                white-space: nowrap;
             }
 
             .grid {
@@ -643,11 +721,13 @@
             </div>
 
             <div class="card" style="margin-bottom: 2rem;">
-                <h2>Monthly Time Log</h2>
-                <div class="month-selector">
-                    <button @click="prevMonth" class="btn">&laquo; Prev</button>
-                    <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
-                    <button @click="nextMonth" class="btn">Next &raquo;</button>
+                <div class="card-header-row">
+                    <h2>Monthly Time Log</h2>
+                    <div class="month-selector">
+                        <button @click="prevMonth" class="btn">&laquo; Prev</button>
+                        <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
+                        <button @click="nextMonth" class="btn">Next &raquo;</button>
+                    </div>
                 </div>
 
                 <div class="calendar">
