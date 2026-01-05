@@ -281,15 +281,14 @@ async def generate_invoice(
                     segment_hours += entry.hours
                 else:
                     # Rate changed - close current segment and start new one
-                    if segment_hours > 0:
-                        bills.append(
-                            WeekBill(
-                                hour_rate=segment_rate,
-                                quantity=segment_hours,
-                                start_date=segment_start_dt,
-                                end_date=segment_end_dt,
-                            )
+                    bills.append(
+                        WeekBill(
+                            hour_rate=segment_rate,
+                            quantity=segment_hours,
+                            start_date=segment_start_dt,
+                            end_date=segment_end_dt,
                         )
+                    )
 
                     # Start new segment with new rate
                     segment_rate = entry.hourly_rate
@@ -299,7 +298,7 @@ async def generate_invoice(
             else:
                 # No entry for this day (gap)
                 # Close current segment if exists
-                if segment_rate is not None and segment_hours > 0:
+                if segment_rate is not None:
                     bills.append(
                         WeekBill(
                             hour_rate=segment_rate,
@@ -316,13 +315,18 @@ async def generate_invoice(
 
             walk_dt += timedelta(days=1)
 
-        # Close final segment of the week if exists
-        if segment_rate is not None and segment_hours > 0:
+        # Close final segment of the week if exists, or create 0-hour entry if no entries in week
+        if segment_rate is not None:
             bills.append(
                 WeekBill(
                     hour_rate=segment_rate, quantity=segment_hours, start_date=segment_start_dt, end_date=segment_end_dt
                 )
             )
+        elif current_dt <= week_end_dt:
+            # Week had no entries at all - create a 0-hour entry
+            # Use default rate from first entry if available, otherwise 0
+            default_rate = sorted_entries[0].hourly_rate if sorted_entries else 0.0
+            bills.append(WeekBill(hour_rate=default_rate, quantity=0.0, start_date=current_dt, end_date=week_end_dt))
 
         # Move to next week start
         current_dt = week_end_dt + timedelta(days=1)
@@ -532,21 +536,20 @@ def _generate_invoice_pdf(
                     segment_end_dt = walk_dt
                     segment_hours += entry["hours"]
                 else:
-                    if segment_hours > 0:
-                        bills.append(
-                            WeekBill(
-                                hour_rate=segment_rate,
-                                quantity=segment_hours,
-                                start_date=segment_start_dt,
-                                end_date=segment_end_dt,
-                            )
+                    bills.append(
+                        WeekBill(
+                            hour_rate=segment_rate,
+                            quantity=segment_hours,
+                            start_date=segment_start_dt,
+                            end_date=segment_end_dt,
                         )
+                    )
                     segment_rate = entry["hourly_rate"]
                     segment_start_dt = walk_dt
                     segment_end_dt = walk_dt
                     segment_hours = entry["hours"]
             else:
-                if segment_rate is not None and segment_hours > 0:
+                if segment_rate is not None:
                     bills.append(
                         WeekBill(
                             hour_rate=segment_rate,
@@ -561,12 +564,18 @@ def _generate_invoice_pdf(
                     segment_end_dt = None
             walk_dt += timedelta(days=1)
 
-        if segment_rate is not None and segment_hours > 0:
+        # Close final segment of the week if exists, or create 0-hour entry if no entries in week
+        if segment_rate is not None:
             bills.append(
                 WeekBill(
                     hour_rate=segment_rate, quantity=segment_hours, start_date=segment_start_dt, end_date=segment_end_dt
                 )
             )
+        elif current_dt <= week_end_dt:
+            # Week had no entries at all - create a 0-hour entry
+            # Use default rate from first entry if available, otherwise 0
+            default_rate = sorted_entries[0]["hourly_rate"] if sorted_entries else 0.0
+            bills.append(WeekBill(hour_rate=default_rate, quantity=0.0, start_date=current_dt, end_date=week_end_dt))
 
         current_dt = week_end_dt + timedelta(days=1)
 
