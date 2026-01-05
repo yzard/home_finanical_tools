@@ -11,7 +11,6 @@ dependencies = ["python-dateutil", "fpdf2", "fastapi", "uvicorn", "pyyaml", "pyd
 dynamic = ["version"]
 
 [project.scripts]
-gen_invoice = "home_financial_tools.entry_points.invoice:main"
 
 [tool.setuptools]
 packages = ["home_financial_tools"]

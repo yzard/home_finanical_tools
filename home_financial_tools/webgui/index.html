@@ -20,6 +20,7 @@
             --radius: 16px;
             --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
             --input-bg: #0f172a;
+            --header-height: 80px;
         }
 
         body {
@@ -56,6 +57,133 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.35rem;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 0.6rem 1.25rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            user-select: none;
+        }
+
+        .nav-tab:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Mobile Tab Selector (Stacked Button) */
+        .mobile-tab-selector {
+            display: none;
+            position: relative;
+        }
+
+        .mobile-tab-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-weight: 700;
+            cursor: pointer;
+            min-width: 140px;
+            justify-content: space-between;
+        }
+
+        .mobile-tab-trigger::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid var(--text-muted);
+            border-bottom: 2px solid var(--text-muted);
+            transform: rotate(45deg);
+            margin-top: -4px;
+            transition: transform 0.3s;
+        }
+
+        .mobile-tab-trigger.open::after {
+            transform: rotate(-135deg);
+            margin-top: 4px;
+        }
+
+        .mobile-tab-menu {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            left: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            min-width: 180px;
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mobile-tab-item {
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            color: var(--text);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .mobile-tab-item:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-tab-item.active {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .mobile-tab-item:active {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
         }
 
         .user-info {
@@ -284,13 +412,40 @@
             .header {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 1rem;
-                margin-bottom: 1.5rem;
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .header h1 {
+                margin-bottom: 0.5rem;
+            }
+
+            .header-left {
+                width: 100%;
+                justify-content: space-between;
+                flex-direction: row;
+                /* Keep title and tab button side by side or title top */
+            }
+
+            /* Stack layout for mobile header */
+            .header-content {
+                display: flex;
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .nav-tabs {
+                display: none;
+            }
+
+            .mobile-tab-selector {
+                display: block;
             }
 
             .user-info {
-                width: 100%;
-                justify-content: space-between;
+                width: auto;
+                justify-content: flex-end;
             }
 
             .grid {
@@ -438,549 +593,592 @@
 </head>
 
 <body>
-    <div id="app" class="container">
+    <div id="app" class="container" @click="closeMobileTabs">
         <div class="header">
-            <h1>Invoice Generator Pro</h1>
+            <div class="header-left">
+                <h1>Invoice Pro</h1>
+
+                <!-- Desktop Tabs -->
+                <div class="nav-tabs">
+                    <div class="nav-tab" :class="{ active: currentTab === 'calendar' }"
+                        @click="currentTab = 'calendar'">Calendar</div>
+                    <div class="nav-tab" :class="{ active: currentTab === 'settings' }"
+                        @click="currentTab = 'settings'">Settings</div>
+                </div>
+
+                <!-- Mobile Tab Selector (Stacked Button) -->
+                <div class="mobile-tab-selector" @click.stop>
+                    <button class="mobile-tab-trigger" :class="{ open: showMobileTabs }"
+                        @click="showMobileTabs = !showMobileTabs">
+                        {{ currentTab === 'calendar' ? 'Calendar' : 'Settings' }}
+                    </button>
+                    <div v-if="showMobileTabs" class="mobile-tab-menu">
+                        <div class="mobile-tab-item" :class="{ active: currentTab === 'calendar' }"
+                            @click="currentTab = 'calendar'; showMobileTabs = false">Calendar</div>
+                        <div class="mobile-tab-item" :class="{ active: currentTab === 'settings' }"
+                            @click="currentTab = 'settings'; showMobileTabs = false">Settings</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="user-info">
                 <span class="username">{{ username }}</span>
                 <button @click="logout" class="btn-logout">Logout</button>
             </div>
         </div>
 
-        <div class="actions" style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start; flex-wrap: wrap; gap: 1rem;">
-            <button @click="generateHalfMonth('first')" class="btn btn-primary"
-                style="padding: 1rem 1.5rem; font-size: 1rem;">Generate First Half (1-15)</button>
-            <button @click="generateHalfMonth('second')" class="btn btn-primary"
-                style="padding: 1rem 1.5rem; font-size: 1rem;">Generate Second Half (16-End)</button>
-            <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
-                :disabled="sending_email || !email_settings.has_password"
-                style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                {{ sending_email ? 'Sending...' : 'Send Monthly Invoice Email' }}
-            </button>
-        </div>
-
-        <div class="card" style="margin-bottom: 2rem;">
-            <h2>Invoice Details & Monthly View</h2>
-            <div style="display: flex; gap: 2rem;">
-                <div class="form-group" style="max-width: 200px; flex: 1;">
-                    <label>Invoice Number</label>
-                    <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber">
-                </div>
-                <div class="form-group" style="max-width: 200px; flex: 1;">
-                    <label>Default Hourly Rate</label>
-                    <input v-model.number="default_hourly_rate" type="number" @change="saveDefaultRate">
-                </div>
+        <!-- Calendar Tab Content -->
+        <div v-show="currentTab === 'calendar'">
+            <div class="actions"
+                style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start; flex-wrap: wrap; gap: 1rem;">
+                <button @click="generateHalfMonth('first')" class="btn btn-primary"
+                    style="padding: 1rem 1.5rem; font-size: 1rem;">Generate First Half (1-15)</button>
+                <button @click="generateHalfMonth('second')" class="btn btn-primary"
+                    style="padding: 1rem 1.5rem; font-size: 1rem;">Generate Second Half (16-End)</button>
+                <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
+                    :disabled="sending_email || !email_settings.has_password"
+                    style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    {{ sending_email ? 'Sending...' : 'Send Monthly Invoice Email' }}
+                </button>
             </div>
 
-            <div class="month-selector">
-                <button @click="prevMonth" class="btn">&laquo; Prev</button>
-                <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
-                <button @click="nextMonth" class="btn">Next &raquo;</button>
-            </div>
-
-            <div class="calendar">
-                <div v-for="h in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" class="calendar-header">{{ h }}
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Monthly Time Log</h2>
+                <div class="month-selector">
+                    <button @click="prevMonth" class="btn">&laquo; Prev</button>
+                    <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
+                    <button @click="nextMonth" class="btn">Next &raquo;</button>
                 </div>
-                <div v-for="day in calendarDays" :key="day.dateStr" class="day-cell"
-                    :class="{ 'other-month': !day.isCurrentMonth }">
-                    <div class="date">{{ day.dayNum }}</div>
-                    <div>
-                        <label style="font-size: 0.65rem;">Hours</label>
-                        <input v-model.number="day.hours" type="number" step="0.5"
-                            @change="day.hours_inputted = true; saveTimeEntry(day)"
-                            :class="{ 'is-default': !day.hours_inputted, 'is-inputted': day.hours_inputted }">
-                        <label style="font-size: 0.65rem;">Rate</label>
-                        <input v-model.number="day.hourly_rate" type="number"
-                            @change="day.rate_inputted = true; saveTimeEntry(day)"
-                            :class="{ 'is-default': !day.rate_inputted, 'is-inputted': day.rate_inputted }">
+
+                <div class="calendar">
+                    <div v-for="h in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" class="calendar-header">{{ h }}
+                    </div>
+                    <div v-for="day in calendarDays" :key="day.dateStr" class="day-cell"
+                        :class="{ 'other-month': !day.isCurrentMonth }">
+                        <div class="date">{{ day.dayNum }}</div>
+                        <div>
+                            <label style="font-size: 0.65rem;">Hours</label>
+                            <input v-model.number="day.hours" type="number" step="0.5"
+                                @change="day.hours_inputted = true; saveTimeEntry(day)"
+                                :class="{ 'is-default': !day.hours_inputted, 'is-inputted': day.hours_inputted }">
+                            <label style="font-size: 0.65rem;">Rate</label>
+                            <input v-model.number="day.hourly_rate" type="number"
+                                @change="day.rate_inputted = true; saveTimeEntry(day)"
+                                :class="{ 'is-default': !day.rate_inputted, 'is-inputted': day.rate_inputted }">
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="grid">
-            <!-- Corporation Info -->
-            <div class="card">
-                <h2>Corporation Info</h2>
-                <div class="form-group">
-                    <label>Company Name</label>
-                    <input v-model="corp.company_name" type="text">
-                </div>
-                <div class="form-group">
-                    <label>Recipient</label>
-                    <input v-model="corp.recipient" type="text">
-                </div>
-                <div class="form-group">
-                    <label>Street</label>
-                    <input v-model="corp.street" type="text">
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <div class="form-group">
-                        <label>City</label>
-                        <input v-model="corp.city" type="text">
+        <!-- Settings Tab Content -->
+        <div v-show="currentTab === 'settings'">
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Application Settings</h2>
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                    <div class="form-group" style="max-width: 200px; flex: 1; min-width: 150px;">
+                        <label>Next Invoice Number</label>
+                        <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber">
                     </div>
-                    <div class="form-group">
-                        <label>State</label>
-                        <input v-model="corp.state" type="text">
+                    <div class="form-group" style="max-width: 200px; flex: 1; min-width: 150px;">
+                        <label>Default Hourly Rate</label>
+                        <input v-model.number="default_hourly_rate" type="number" @change="saveDefaultRate">
                     </div>
                 </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+            </div>
+
+            <div class="grid">
+                <!-- Corporation Info -->
+                <div class="card">
+                    <h2>Corporation Info</h2>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: -1rem; margin-bottom: 1.5rem;">
+                        Your business details</p>
                     <div class="form-group">
+                        <label>Company Name</label>
+                        <input v-model="corp.company_name" type="text">
+                    </div>
+                    <div class="form-group">
+                        <label>Recipient Name</label>
+                        <input v-model="corp.recipient" type="text">
+                    </div>
+                    <div class="form-group">
+                        <label>Street Address</label>
+                        <input v-model="corp.street" type="text">
+                    </div>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>City</label>
+                            <input v-model="corp.city" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input v-model="corp.state" type="text">
+                        </div>
+                    </div>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label>Zip Code</label>
+                            <input v-model="corp.zip_code" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input v-model="corp.phone_number" type="text">
+                        </div>
+                    </div>
+                    <button @click="saveCorp" class="btn btn-primary">Save Corp Info</button>
+                </div>
+
+                <!-- Bill To -->
+                <div class="card">
+                    <h2>Bill To</h2>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: -1rem; margin-bottom: 1.5rem;">
+                        Client billing information</p>
+                    <div class="form-group">
+                        <label>Company Name</label>
+                        <input v-model="bill_to.company_name" type="text">
+                    </div>
+                    <div class="form-group">
+                        <label>Recipient Name</label>
+                        <input v-model="bill_to.recipient" type="text">
+                    </div>
+                    <div class="form-group">
+                        <label>Street Address</label>
+                        <input v-model="bill_to.street" type="text">
+                    </div>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0;">
+                        <div class="form-group">
+                            <label>City</label>
+                            <input v-model="bill_to.city" type="text">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input v-model="bill_to.state" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
                         <label>Zip Code</label>
-                        <input v-model="corp.zip_code" type="text">
+                        <input v-model="bill_to.zip_code" type="text">
                     </div>
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input v-model="corp.phone_number" type="text">
-                    </div>
+                    <button @click="saveBillTo" class="btn btn-primary">Save Bill To</button>
                 </div>
-                <button @click="saveCorp" class="btn btn-primary">Save Corp Info</button>
             </div>
 
-            <!-- Bill To -->
-            <div class="card">
-                <h2>Bill To</h2>
-                <div class="form-group">
-                    <label>Company Name</label>
-                    <input v-model="bill_to.company_name" type="text">
-                </div>
-                <div class="form-group">
-                    <label>Recipient</label>
-                    <input v-model="bill_to.recipient" type="text">
-                </div>
-                <div class="form-group">
-                    <label>Street</label>
-                    <input v-model="bill_to.street" type="text">
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <div class="form-group">
-                        <label>City</label>
-                        <input v-model="bill_to.city" type="text">
+            <!-- Email Settings -->
+            <div class="card" style="margin-top: 1rem;">
+                <h2>Email Settings</h2>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Gmail Account (for login)</label>
+                        <input v-model="email_settings.gmail_account" type="email" placeholder="your.account@gmail.com">
                     </div>
-                    <div class="form-group">
-                        <label>State</label>
-                        <input v-model="bill_to.state" type="text">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Gmail App Password</label>
+                        <input v-model="email_settings.gmail_app_password" type="password"
+                            :placeholder="email_settings.has_password ? '(saved - enter new to change)' : 'Enter app password'">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Zip Code</label>
-                    <input v-model="bill_to.zip_code" type="text">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>From Email (sender alias)</label>
+                        <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>CC Email (Optional)</label>
+                        <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
+                    </div>
                 </div>
-                <button @click="saveBillTo" class="btn btn-primary">Save Bill To</button>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>To Email</label>
+                        <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;"></div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                    <button @click="saveEmailSettings" class="btn btn-primary">Save Email Settings</button>
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">
+                        Generate app password at: Google Account &gt; Security &gt; App Passwords
+                    </small>
+                </div>
             </div>
         </div>
 
-        <!-- Email Settings -->
-        <div class="card" style="margin-top: 2rem;">
-            <h2>Email Settings</h2>
-            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>Gmail Account (for login)</label>
-                    <input v-model="email_settings.gmail_account" type="email" placeholder="your.account@gmail.com">
-                </div>
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>Gmail App Password</label>
-                    <input v-model="email_settings.gmail_app_password" type="password"
-                        :placeholder="email_settings.has_password ? '(saved - enter new to change)' : 'Enter app password'">
-                </div>
-            </div>
-            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>From Email (sender address/alias)</label>
-                    <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
-                </div>
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>CC Email (Optional)</label>
-                    <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
-                </div>
-            </div>
-            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>To Email</label>
-                    <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
-                </div>
-                <div class="form-group" style="margin-bottom: 0.75rem;"></div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
-                <button @click="saveEmailSettings" class="btn btn-primary">Save Email Settings</button>
-                <small style="color: var(--text-muted); font-size: 0.75rem;">
-                    Generate app password at: Google Account &gt; Security &gt; App Passwords
-                </small>
-            </div>
-        </div>
-    </div>
+        <script>
+            const { createApp } = Vue;
 
-    <script>
-        const { createApp } = Vue;
-
-        // Authentication helpers
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-            return null;
-        }
-
-        function deleteCookie(name) {
-            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
-        }
-
-        function checkAuth() {
-            const token = getCookie('auth_token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return false;
+            // Authentication helpers
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
             }
-            return true;
-        }
 
-        // Check authentication before loading app
-        if (!checkAuth()) {
-            // Will redirect to login
-        } else {
-            // Configure axios defaults
-            axios.defaults.timeout = 30000; // 30 second timeout
+            function deleteCookie(name) {
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+            }
 
-            // Setup axios interceptor for authentication
-            const authToken = getCookie('auth_token');
-            axios.interceptors.request.use(config => {
-                config.headers['X-Auth-Token'] = authToken;
-                return config;
-            });
-
-            // Setup axios interceptor for error responses
-            axios.interceptors.response.use(
-                response => response,
-                error => {
-                    // Handle network errors and timeouts
-                    if (!error.response) {
-                        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-                            alert('Connection timeout: Unable to reach the server. Please check your network connection and try again.');
-                        } else {
-                            alert('Connection error: Unable to connect to the backend server. Please check if the server is running.');
-                        }
-                        return Promise.reject(error);
-                    }
-
-                    // Handle authentication errors (401 Unauthorized)
-                    if (error.response.status === 401) {
-                        deleteCookie('auth_token');
-                        deleteCookie('auth_username');
-                        window.location.href = '/login.html?error=session_expired';
-                        return Promise.reject(error);
-                    }
-
-                    // Handle authorization errors (403 Forbidden)
-                    if (error.response.status === 403) {
-                        deleteCookie('auth_token');
-                        deleteCookie('auth_username');
-                        window.location.href = '/login.html?error=access_denied';
-                        return Promise.reject(error);
-                    }
-
-                    return Promise.reject(error);
+            function checkAuth() {
+                const token = getCookie('auth_token');
+                if (!token) {
+                    window.location.href = '/login.html';
+                    return false;
                 }
-            );
-        }
+                return true;
+            }
 
-        createApp({
-            data() {
-                return {
-                    corp: {},
-                    bill_to: {},
-                    invoice_number: 101,
-                    currentDate: new Date(),
-                    calendarDays: [],
-                    default_hourly_rate: 225,
-                    username: getCookie('auth_username') || 'User',
-                    email_settings: {
-                        gmail_account: '',
-                        from_email: '',
-                        to_email: '',
-                        cc_email: '',
-                        gmail_app_password: '',
-                        has_password: false
+            // Check authentication before loading app
+            if (!checkAuth()) {
+                // Will redirect to login
+            } else {
+                // Configure axios defaults
+                axios.defaults.timeout = 30000; // 30 second timeout
+
+                // Setup axios interceptor for authentication
+                const authToken = getCookie('auth_token');
+                axios.interceptors.request.use(config => {
+                    config.headers['X-Auth-Token'] = authToken;
+                    return config;
+                });
+
+                // Setup axios interceptor for error responses
+                axios.interceptors.response.use(
+                    response => response,
+                    error => {
+                        // Handle network errors and timeouts
+                        if (!error.response) {
+                            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                                alert('Connection timeout: Unable to reach the server. Please check your network connection and try again.');
+                            } else {
+                                alert('Connection error: Unable to connect to the backend server. Please check if the server is running.');
+                            }
+                            return Promise.reject(error);
+                        }
+
+                        // Handle authentication errors (401 Unauthorized)
+                        if (error.response.status === 401) {
+                            deleteCookie('auth_token');
+                            deleteCookie('auth_username');
+                            window.location.href = '/login.html?error=session_expired';
+                            return Promise.reject(error);
+                        }
+
+                        // Handle authorization errors (403 Forbidden)
+                        if (error.response.status === 403) {
+                            deleteCookie('auth_token');
+                            deleteCookie('auth_username');
+                            window.location.href = '/login.html?error=access_denied';
+                            return Promise.reject(error);
+                        }
+
+                        return Promise.reject(error);
+                    }
+                );
+            }
+
+            createApp({
+                data() {
+                    return {
+                        corp: {},
+                        bill_to: {},
+                        invoice_number: 101,
+                        currentDate: new Date(),
+                        calendarDays: [],
+                        default_hourly_rate: 225,
+                        username: getCookie('auth_username') || 'User',
+                        email_settings: {
+                            gmail_account: '',
+                            from_email: '',
+                            to_email: '',
+                            cc_email: '',
+                            gmail_app_password: '',
+                            has_password: false
+                        },
+                        sending_email: false,
+                        currentTab: 'calendar',
+                        showMobileTabs: false
+                    }
+                },
+                computed: {
+                    currentMonthName() {
+                        return this.currentDate.toLocaleString('default', { month: 'long' });
                     },
-                    sending_email: false
-                }
-            },
-            computed: {
-                currentMonthName() {
-                    return this.currentDate.toLocaleString('default', { month: 'long' });
+                    currentYear() {
+                        return this.currentDate.getFullYear();
+                    }
                 },
-                currentYear() {
-                    return this.currentDate.getFullYear();
-                }
-            },
-            mounted() {
-                this.loadAll();
-            },
-            methods: {
-                async loadAll() {
-                    try {
-                        const corpRes = await axios.get('/api/corporation');
-                        this.corp = corpRes.data;
-                        const billRes = await axios.get('/api/bill_to');
-                        this.bill_to = billRes.data;
+                mounted() {
+                    this.loadAll();
+                },
+                methods: {
+                    closeMobileTabs() {
+                        this.showMobileTabs = false;
+                    },
+                    async loadAll() {
+                        try {
+                            const corpRes = await axios.get('/api/corporation');
+                            this.corp = corpRes.data;
+                            const billRes = await axios.get('/api/bill_to');
+                            this.bill_to = billRes.data;
 
-                        // Load settings
-                        const rateRes = await axios.get('/api/settings/default_hourly_rate');
-                        if (rateRes.data.value !== null) {
-                            this.default_hourly_rate = parseFloat(rateRes.data.value);
+                            // Load settings
+                            const rateRes = await axios.get('/api/settings/default_hourly_rate');
+                            if (rateRes.data.value !== null) {
+                                this.default_hourly_rate = parseFloat(rateRes.data.value);
+                            }
+
+                            const invRes = await axios.get('/api/settings/next_invoice_number');
+                            if (invRes.data.value !== null) {
+                                this.invoice_number = parseInt(invRes.data.value);
+                            }
+
+                            // Load email settings
+                            await this.loadEmailSettings();
+
+                            this.renderCalendar();
+                        } catch (e) {
+                            console.error(e);
                         }
-
-                        const invRes = await axios.get('/api/settings/next_invoice_number');
-                        if (invRes.data.value !== null) {
-                            this.invoice_number = parseInt(invRes.data.value);
+                    },
+                    async loadEmailSettings() {
+                        try {
+                            const res = await axios.post('/api/email_settings/get');
+                            this.email_settings.gmail_account = res.data.gmail_account || '';
+                            this.email_settings.from_email = res.data.from_email || '';
+                            this.email_settings.to_email = res.data.to_email || '';
+                            this.email_settings.cc_email = res.data.cc_email || '';
+                            this.email_settings.has_password = res.data.has_password || false;
+                        } catch (e) {
+                            console.error('Failed to load email settings:', e);
                         }
+                    },
+                    async saveEmailSettings() {
+                        try {
+                            await axios.post('/api/email_settings/set', {
+                                gmail_account: this.email_settings.gmail_account,
+                                from_email: this.email_settings.from_email,
+                                to_email: this.email_settings.to_email,
+                                cc_email: this.email_settings.cc_email,
+                                gmail_app_password: this.email_settings.gmail_app_password
+                            });
+                            if (this.email_settings.gmail_app_password) {
+                                this.email_settings.has_password = true;
+                            }
+                            this.email_settings.gmail_app_password = '';
+                            alert('Email settings saved');
+                        } catch (e) {
+                            alert('Error saving email settings: ' + (e.response?.data?.detail || e.message));
+                        }
+                    },
+                    async sendMonthlyInvoiceEmail() {
+                        const year = this.currentDate.getFullYear();
+                        const month = this.currentDate.getMonth() + 1;
 
-                        // Load email settings
-                        await this.loadEmailSettings();
+                        try {
+                            this.sending_email = true;
 
+                            const res = await axios.post('/api/send_email', {
+                                invoice_number: this.invoice_number,
+                                month: month,
+                                year: year
+                            });
+
+                            alert(res.data.message);
+
+                            // Update invoice number from response
+                            this.invoice_number = res.data.new_invoice_number;
+                        } catch (e) {
+                            alert('Error sending email: ' + (e.response?.data?.detail || e.message));
+                        } finally {
+                            this.sending_email = false;
+                        }
+                    },
+                    async saveDefaultRate() {
+                        await axios.post('/api/settings', {
+                            key: 'default_hourly_rate',
+                            value: String(this.default_hourly_rate)
+                        });
+                    },
+                    async saveInvoiceNumber() {
+                        await axios.post('/api/settings', {
+                            key: 'next_invoice_number',
+                            value: String(this.invoice_number)
+                        });
+                    },
+                    async saveCorp() {
+                        await axios.post('/api/corporation', this.corp);
+                        alert("Corporation saved");
+                    },
+                    async saveBillTo() {
+                        await axios.post('/api/bill_to', this.bill_to);
+                        alert("Bill To saved");
+                    },
+                    prevMonth() {
+                        this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
                         this.renderCalendar();
-                    } catch (e) {
-                        console.error(e);
-                    }
-                },
-                async loadEmailSettings() {
-                    try {
-                        const res = await axios.post('/api/email_settings/get');
-                        this.email_settings.gmail_account = res.data.gmail_account || '';
-                        this.email_settings.from_email = res.data.from_email || '';
-                        this.email_settings.to_email = res.data.to_email || '';
-                        this.email_settings.cc_email = res.data.cc_email || '';
-                        this.email_settings.has_password = res.data.has_password || false;
-                    } catch (e) {
-                        console.error('Failed to load email settings:', e);
-                    }
-                },
-                async saveEmailSettings() {
-                    try {
-                        await axios.post('/api/email_settings/set', {
-                            gmail_account: this.email_settings.gmail_account,
-                            from_email: this.email_settings.from_email,
-                            to_email: this.email_settings.to_email,
-                            cc_email: this.email_settings.cc_email,
-                            gmail_app_password: this.email_settings.gmail_app_password
-                        });
-                        if (this.email_settings.gmail_app_password) {
-                            this.email_settings.has_password = true;
-                        }
-                        this.email_settings.gmail_app_password = '';
-                        alert('Email settings saved');
-                    } catch (e) {
-                        alert('Error saving email settings: ' + (e.response?.data?.detail || e.message));
-                    }
-                },
-                async sendMonthlyInvoiceEmail() {
-                    const year = this.currentDate.getFullYear();
-                    const month = this.currentDate.getMonth() + 1;
+                    },
+                    nextMonth() {
+                        this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+                        this.renderCalendar();
+                    },
+                    async renderCalendar() {
+                        const year = this.currentDate.getFullYear();
+                        const month = this.currentDate.getMonth();
 
-                    try {
-                        this.sending_email = true;
+                        const firstDay = new Date(year, month, 1);
+                        const lastDay = new Date(year, month + 1, 0);
 
-                        const res = await axios.post('/api/send_email', {
-                            invoice_number: this.invoice_number,
-                            month: month,
-                            year: year
-                        });
+                        // Adjust for Monday start: getDay() returns 0 for Sunday, 1 for Monday, etc.
+                        // We want Monday (1) to be 0 padding, Sunday (0) to be 6 padding
+                        let startPadding = firstDay.getDay() - 1;
+                        if (startPadding < 0) startPadding = 6; // Sunday case
+                        const days = [];
 
-                        alert(res.data.message);
+                        // Start date for the grid
+                        const gridStart = new Date(firstDay);
+                        gridStart.setDate(gridStart.getDate() - startPadding);
 
-                        // Update invoice number from response
-                        this.invoice_number = res.data.new_invoice_number;
-                    } catch (e) {
-                        alert('Error sending email: ' + (e.response?.data?.detail || e.message));
-                    } finally {
-                        this.sending_email = false;
-                    }
-                },
-                async saveDefaultRate() {
-                    await axios.post('/api/settings', {
-                        key: 'default_hourly_rate',
-                        value: String(this.default_hourly_rate)
-                    });
-                },
-                async saveInvoiceNumber() {
-                    await axios.post('/api/settings', {
-                        key: 'next_invoice_number',
-                        value: String(this.invoice_number)
-                    });
-                },
-                async saveCorp() {
-                    await axios.post('/api/corporation', this.corp);
-                    alert("Corporation saved");
-                },
-                async saveBillTo() {
-                    await axios.post('/api/bill_to', this.bill_to);
-                    alert("Bill To saved");
-                },
-                prevMonth() {
-                    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
-                    this.renderCalendar();
-                },
-                nextMonth() {
-                    this.currentDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
-                    this.renderCalendar();
-                },
-                async renderCalendar() {
-                    const year = this.currentDate.getFullYear();
-                    const month = this.currentDate.getMonth();
-
-                    const firstDay = new Date(year, month, 1);
-                    const lastDay = new Date(year, month + 1, 0);
-
-                    // Adjust for Monday start: getDay() returns 0 for Sunday, 1 for Monday, etc.
-                    // We want Monday (1) to be 0 padding, Sunday (0) to be 6 padding
-                    let startPadding = firstDay.getDay() - 1;
-                    if (startPadding < 0) startPadding = 6; // Sunday case
-                    const days = [];
-
-                    // Start date for the grid
-                    const gridStart = new Date(firstDay);
-                    gridStart.setDate(gridStart.getDate() - startPadding);
-
-                    const format = (d) => {
-                        const Y = d.getFullYear();
-                        const M = String(d.getMonth() + 1).padStart(2, '0');
-                        const D = String(d.getDate()).padStart(2, '0');
-                        return `${Y}-${M}-${D}`;
-                    };
-
-                    const startStr = format(gridStart);
-                    const endGrid = new Date(gridStart);
-                    endGrid.setDate(endGrid.getDate() + 41);
-                    const endStr = format(endGrid);
-
-                    const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
-                    const entryMap = {};
-                    entriesRes.data.forEach(e => entryMap[e.date] = e);
-
-                    for (let i = 0; i < 42; i++) {
-                        const d = new Date(gridStart);
-                        d.setDate(d.getDate() + i);
-                        const dateStr = format(d);
-                        const entry = entryMap[dateStr] || {
-                            hours: 0,
-                            hourly_rate: this.default_hourly_rate,
-                            hours_inputted: false,
-                            rate_inputted: false
+                        const format = (d) => {
+                            const Y = d.getFullYear();
+                            const M = String(d.getMonth() + 1).padStart(2, '0');
+                            const D = String(d.getDate()).padStart(2, '0');
+                            return `${Y}-${M}-${D}`;
                         };
 
-                        days.push({
-                            dateStr: dateStr,
-                            dayNum: d.getDate(),
-                            isCurrentMonth: d.getMonth() === month,
-                            hours: entry.hours,
-                            hourly_rate: entry.hourly_rate,
-                            hours_inputted: entry.hours_inputted,
-                            rate_inputted: entry.rate_inputted
-                        });
-                    }
-                    this.calendarDays = days;
-                },
-                async saveTimeEntry(day) {
-                    await axios.post('/api/time_entries', {
-                        date: day.dateStr,
-                        hours: day.hours || 0,
-                        hourly_rate: day.hourly_rate || this.default_hourly_rate,
-                        hours_inputted: !!day.hours_inputted,
-                        rate_inputted: !!day.rate_inputted
-                    });
-                },
-                async generateHalfMonth(half) {
-                    const year = this.currentDate.getFullYear();
-                    const month = this.currentDate.getMonth();
+                        const startStr = format(gridStart);
+                        const endGrid = new Date(gridStart);
+                        endGrid.setDate(endGrid.getDate() + 41);
+                        const endStr = format(endGrid);
 
-                    let startDate, endDate;
-                    if (half === 'first') {
-                        startDate = new Date(year, month, 1);
-                        endDate = new Date(year, month, 15);
-                    } else {
-                        startDate = new Date(year, month, 16);
-                        endDate = new Date(year, month + 1, 0); // Last day of month
-                    }
-
-                    const format = (d) => {
-                        const Y = d.getFullYear();
-                        const M = String(d.getMonth() + 1).padStart(2, '0');
-                        const D = String(d.getDate()).padStart(2, '0');
-                        return `${Y}-${M}-${D}`;
-                    };
-
-                    const startStr = format(startDate);
-                    const endStr = format(endDate);
-
-                    try {
                         const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
-                        const activeEntries = entriesRes.data.filter(e => e.hours > 0);
+                        const entryMap = {};
+                        entriesRes.data.forEach(e => entryMap[e.date] = e);
 
-                        if (activeEntries.length === 0) {
-                            alert("No hours entered for this period");
-                            return;
+                        for (let i = 0; i < 42; i++) {
+                            const d = new Date(gridStart);
+                            d.setDate(d.getDate() + i);
+                            const dateStr = format(d);
+                            const entry = entryMap[dateStr] || {
+                                hours: 0,
+                                hourly_rate: this.default_hourly_rate,
+                                hours_inputted: false,
+                                rate_inputted: false
+                            };
+
+                            days.push({
+                                dateStr: dateStr,
+                                dayNum: d.getDate(),
+                                isCurrentMonth: d.getMonth() === month,
+                                hours: entry.hours,
+                                hourly_rate: entry.hourly_rate,
+                                hours_inputted: entry.hours_inputted,
+                                rate_inputted: entry.rate_inputted
+                            });
+                        }
+                        this.calendarDays = days;
+                    },
+                    async saveTimeEntry(day) {
+                        await axios.post('/api/time_entries', {
+                            date: day.dateStr,
+                            hours: day.hours || 0,
+                            hourly_rate: day.hourly_rate || this.default_hourly_rate,
+                            hours_inputted: !!day.hours_inputted,
+                            rate_inputted: !!day.rate_inputted
+                        });
+                    },
+                    async generateHalfMonth(half) {
+                        const year = this.currentDate.getFullYear();
+                        const month = this.currentDate.getMonth();
+
+                        let startDate, endDate;
+                        if (half === 'first') {
+                            startDate = new Date(year, month, 1);
+                            endDate = new Date(year, month, 15);
+                        } else {
+                            startDate = new Date(year, month, 16);
+                            endDate = new Date(year, month + 1, 0); // Last day of month
                         }
 
-                        const res = await axios.post('/api/generate', {
-                            invoice_number: this.invoice_number,
-                            start_date: startStr,
-                            end_date: endStr,
-                            entries: activeEntries
-                        }, { responseType: 'blob' });
+                        const format = (d) => {
+                            const Y = d.getFullYear();
+                            const M = String(d.getMonth() + 1).padStart(2, '0');
+                            const D = String(d.getDate()).padStart(2, '0');
+                            return `${Y}-${M}-${D}`;
+                        };
 
-                        // Extract filename from Content-Disposition header
-                        let filename = `invoice_${this.invoice_number}.pdf`;
-                        const disposition = res.headers['content-disposition'];
-                        if (disposition && disposition.indexOf('attachment') !== -1) {
-                            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                            const matches = filenameRegex.exec(disposition);
-                            if (matches != null && matches[1]) {
-                                filename = matches[1].replace(/['"]/g, '');
+                        const startStr = format(startDate);
+                        const endStr = format(endDate);
+
+                        try {
+                            const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
+                            const activeEntries = entriesRes.data.filter(e => e.hours > 0);
+
+                            if (activeEntries.length === 0) {
+                                alert("No hours entered for this period");
+                                return;
+                            }
+
+                            const res = await axios.post('/api/generate', {
+                                invoice_number: this.invoice_number,
+                                start_date: startStr,
+                                end_date: endStr,
+                                entries: activeEntries
+                            }, { responseType: 'blob' });
+
+                            // Extract filename from Content-Disposition header
+                            let filename = `invoice_${this.invoice_number}.pdf`;
+                            const disposition = res.headers['content-disposition'];
+                            if (disposition && disposition.indexOf('attachment') !== -1) {
+                                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                                const matches = filenameRegex.exec(disposition);
+                                if (matches != null && matches[1]) {
+                                    filename = matches[1].replace(/['"]/g, '');
+                                }
+                            }
+
+                            const url = window.URL.createObjectURL(new Blob([res.data]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', filename);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+
+                            // Increment invoice number
+                            this.invoice_number++;
+                            await this.saveInvoiceNumber();
+                        } catch (e) {
+                            if (e.response && e.response.data) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    try {
+                                        const err = JSON.parse(reader.result);
+                                        alert("Error: " + err.detail);
+                                    } catch (ex) {
+                                        alert("Error: " + reader.result);
+                                    }
+                                };
+                                reader.readAsText(e.response.data);
+                            } else {
+                                alert("Error: " + e.message);
                             }
                         }
-
-                        const url = window.URL.createObjectURL(new Blob([res.data]));
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.setAttribute('download', filename);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-
-                        // Increment invoice number
-                        this.invoice_number++;
-                        await this.saveInvoiceNumber();
-                    } catch (e) {
-                        if (e.response && e.response.data) {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                try {
-                                    const err = JSON.parse(reader.result);
-                                    alert("Error: " + err.detail);
-                                } catch (ex) {
-                                    alert("Error: " + reader.result);
-                                }
-                            };
-                            reader.readAsText(e.response.data);
-                        } else {
-                            alert("Error: " + e.message);
+                    },
+                    async logout() {
+                        try {
+                            await axios.post('/api/logout');
+                        } catch (e) {
+                            // Ignore errors on logout
                         }
+                        // Clear cookies
+                        deleteCookie('auth_token');
+                        deleteCookie('auth_username');
+                        // Redirect to login
+                        window.location.href = '/login.html';
                     }
-                },
-                async logout() {
-                    try {
-                        await axios.post('/api/logout');
-                    } catch (e) {
-                        // Ignore errors on logout
-                    }
-                    // Clear cookies
-                    deleteCookie('auth_token');
-                    deleteCookie('auth_username');
-                    // Redirect to login
-                    window.location.href = '/login.html';
                 }
-            }
-        }).mount('#app');
-    </script>
+            }).mount('#app');
+        </script>
 </body>
 
 </html>
