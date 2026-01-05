@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from typing import Any, Dict, List, Optional
 
@@ -5,6 +6,10 @@ from typing import Any, Dict, List, Optional
 class Database:
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
+        # Ensure parent directory exists before initializing database
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:

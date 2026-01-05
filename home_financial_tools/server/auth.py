@@ -12,7 +12,7 @@ class AuthenticationError(HTTPException):
         super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication credentials")
 
 
-def load_users(config: dict) -> Dict[str, str]:
+def load_users(config: dict) -> Dict[str, bytes]:
     """
     Load users from config and hash their passwords with bcrypt.
 
