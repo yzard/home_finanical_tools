@@ -524,6 +524,18 @@
             border-bottom: 2px solid var(--primary);
         }
 
+        .month-total-row {
+            background: linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.2) 100%);
+            font-weight: 700;
+        }
+
+        .month-total-row td {
+            color: #22c55e;
+            border-top: 2px solid #22c55e;
+            border-bottom: 2px solid #22c55e;
+            padding: 1.25rem 1rem;
+        }
+
         .card .btn-primary {
             margin-top: auto;
         }
@@ -850,9 +862,9 @@
             <div class="actions"
                 style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start; flex-wrap: wrap; gap: 1rem;">
                 <button @click="generateHalfMonth('first')" class="btn btn-primary"
-                    style="padding: 1rem 1.5rem; font-size: 1rem;">Generate First Half (1-15)</button>
+                    style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 1-15</button>
                 <button @click="generateHalfMonth('second')" class="btn btn-primary"
-                    style="padding: 1rem 1.5rem; font-size: 1rem;">Generate Second Half (16-End)</button>
+                    style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 16-End</button>
                 <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
                     :disabled="sending_email || !email_settings.has_password"
                     style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
@@ -922,7 +934,7 @@
                             Loading...
                         </div>
 
-                        <div v-else-if="summaryData[monthKey] && summaryData[monthKey].length > 0" class="summary-table-container">
+                        <div v-else-if="summaryData[monthKey] && summaryData[monthKey].weeks && summaryData[monthKey].weeks.length > 0" class="summary-table-container">
                             <table class="summary-table">
                                 <thead>
                                     <tr>
@@ -932,8 +944,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <template v-for="(row, idx) in summaryData[monthKey]" :key="idx">
-                                        <tr v-if="!row.isYearly">
+                                    <tr class="month-total-row">
+                                        <td>MONTH TOTAL</td>
+                                        <td>{{ summaryData[monthKey].monthTotal.hours.toFixed(1) }}</td>
+                                        <td>${{ summaryData[monthKey].monthTotal.amount.toLocaleString(undefined, {minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2}) }}</td>
+                                    </tr>
+                                    <template v-for="(row, idx) in summaryData[monthKey].weeks" :key="idx">
+                                        <tr>
                                             <td>{{ row.label }}</td>
                                             <td>{{ row.hours.toFixed(1) }}</td>
                                             <td>${{ row.amount.toLocaleString(undefined, {minimumFractionDigits: 2,
@@ -1400,13 +1418,15 @@
                             this.summaryData[monthKey] = summary;
                         } catch (e) {
                             console.error('Failed to load summary for', monthKey, e);
-                            this.summaryData[monthKey] = [];
+                            this.summaryData[monthKey] = { weeks: [], monthTotal: { hours: 0, amount: 0 } };
                         }
                     },
                     computeWeeklySummaryForMonth(calendarDays, year, monthIndex) {
-                        if (!calendarDays || calendarDays.length === 0) return [];
+                        if (!calendarDays || calendarDays.length === 0) return { weeks: [], monthTotal: { hours: 0, amount: 0 } };
 
                         const rows = [];
+                        let monthTotalHours = 0;
+                        let monthTotalAmount = 0;
 
                         // We have 42 days (6 weeks)
                         for (let i = 0; i < 42; i += 7) {
@@ -1447,6 +1467,10 @@
                                 }
                             });
 
+                            // Add to month totals
+                            monthTotalHours += weekHours;
+                            monthTotalAmount += weekAmount;
+
                             // Create label based on actual dates in the month
                             if (weekStartDate && weekEndDate) {
                                 const startLabel = weekStartDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -1461,7 +1485,13 @@
                         }
 
                         // Reverse the rows so newest weeks appear first
-                        return rows.reverse();
+                        return {
+                            weeks: rows.reverse(),
+                            monthTotal: {
+                                hours: monthTotalHours,
+                                amount: monthTotalAmount
+                            }
+                        };
                     },
                     async loadAll() {
                         try {
@@ -1732,9 +1762,8 @@
                             link.click();
                             document.body.removeChild(link);
 
-                            // Increment invoice number
-                            this.invoice_number++;
-                            await this.saveInvoiceNumber();
+                            // Note: Preview buttons do not increment invoice number
+                            // Only "Send Monthly Invoice Email" increments the invoice number
                         } catch (e) {
                             if (e.response && e.response.data) {
                                 const reader = new FileReader();
