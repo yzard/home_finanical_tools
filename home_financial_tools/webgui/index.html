@@ -1403,101 +1403,106 @@
                             console.error("Prev yearly fetch failed", e);
                         }
                     },
-                    is_inputted: !!day.hours_inputted,
-                    rate_inputted: !!day.rate_inputted
-                });
-            this.loadYearlyTotals();
+                    async saveTimeEntry(day) {
+                        await axios.post('/api/time_entries', {
+                            date: day.dateStr,
+                            hours: day.hours || 0,
+                            hourly_rate: day.hourly_rate || this.default_hourly_rate,
+                            hours_inputted: !!day.hours_inputted,
+                            rate_inputted: !!day.rate_inputted
+                        });
+                        this.loadYearlyTotals();
                     },
                     async generateHalfMonth(half) {
-                const year = this.currentDate.getFullYear();
-                const month = this.currentDate.getMonth();
+                        const year = this.currentDate.getFullYear();
+                        const month = this.currentDate.getMonth();
 
-                let startDate, endDate;
-                if (half === 'first') {
-                    startDate = new Date(year, month, 1);
-                    endDate = new Date(year, month, 15);
-                } else {
-                    startDate = new Date(year, month, 16);
-                    endDate = new Date(year, month + 1, 0); // Last day of month
-                }
-
-                const format = (d) => {
-                    const Y = d.getFullYear();
-                    const M = String(d.getMonth() + 1).padStart(2, '0');
-                    const D = String(d.getDate()).padStart(2, '0');
-                    return `${Y}-${M}-${D}`;
-                };
-
-                const startStr = format(startDate);
-                const endStr = format(endDate);
-
-                try {
-                    const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
-                    const activeEntries = entriesRes.data.filter(e => e.hours > 0);
-
-                    if (activeEntries.length === 0) {
-                        alert("No hours entered for this period");
-                        return;
-                    }
-
-                    const res = await axios.post('/api/generate', {
-                        invoice_number: this.invoice_number,
-                        start_date: startStr,
-                        end_date: endStr,
-                        entries: activeEntries
-                    }, { responseType: 'blob' });
-
-                    // Extract filename from Content-Disposition header
-                    let filename = `invoice_${this.invoice_number}.pdf`;
-                    const disposition = res.headers['content-disposition'];
-                    if (disposition && disposition.indexOf('attachment') !== -1) {
-                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                        const matches = filenameRegex.exec(disposition);
-                        if (matches != null && matches[1]) {
-                            filename = matches[1].replace(/['"]/g, '');
+                        let startDate, endDate;
+                        if (half === 'first') {
+                            startDate = new Date(year, month, 1);
+                            endDate = new Date(year, month, 15);
+                        } else {
+                            startDate = new Date(year, month, 16);
+                            endDate = new Date(year, month + 1, 0); // Last day of month
                         }
-                    }
 
-                    const url = window.URL.createObjectURL(new Blob([res.data]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', filename);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-
-                    // Increment invoice number
-                    this.invoice_number++;
-                    await this.saveInvoiceNumber();
-                } catch (e) {
-                    if (e.response && e.response.data) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            try {
-                                const err = JSON.parse(reader.result);
-                                alert("Error: " + err.detail);
-                            } catch (ex) {
-                                alert("Error: " + reader.result);
-                            }
+                        const format = (d) => {
+                            const Y = d.getFullYear();
+                            const M = String(d.getMonth() + 1).padStart(2, '0');
+                            const D = String(d.getDate()).padStart(2, '0');
+                            return `${Y}-${M}-${D}`;
                         };
-                        reader.readAsText(e.response.data);
-                    } else {
-                        alert("Error: " + e.message);
-                    }
-                }
-            },
+
+                        const startStr = format(startDate);
+                        const endStr = format(endDate);
+
+                        try {
+                            const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
+                            const activeEntries = entriesRes.data.filter(e => e.hours > 0);
+
+                            if (activeEntries.length === 0) {
+                                alert("No hours entered for this period");
+                                return;
+                            }
+
+                            const res = await axios.post('/api/generate', {
+                                invoice_number: this.invoice_number,
+                                start_date: startStr,
+                                end_date: endStr,
+                                entries: activeEntries
+                            }, { responseType: 'blob' });
+
+                            // Extract filename from Content-Disposition header
+                            let filename = `invoice_${this.invoice_number}.pdf`;
+                            const disposition = res.headers['content-disposition'];
+                            if (disposition && disposition.indexOf('attachment') !== -1) {
+                                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                                const matches = filenameRegex.exec(disposition);
+                                if (matches != null && matches[1]) {
+                                    filename = matches[1].replace(/['"]/g, '');
+                                }
+                            }
+
+                            const url = window.URL.createObjectURL(new Blob([res.data]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', filename);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+
+                            // Increment invoice number
+                            this.invoice_number++;
+                            await this.saveInvoiceNumber();
+                        } catch (e) {
+                            if (e.response && e.response.data) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    try {
+                                        const err = JSON.parse(reader.result);
+                                        alert("Error: " + err.detail);
+                                    } catch (ex) {
+                                        alert("Error: " + reader.result);
+                                    }
+                                };
+                                reader.readAsText(e.response.data);
+                            } else {
+                                alert("Error: " + e.message);
+                            }
+                        }
+                    },
                     async logout() {
-                try {
-                    await axios.post('/api/logout');
-                } catch (e) {
-                    // Ignore errors on logout
-                }
-                // Clear cookies
-                deleteCookie('auth_token');
-                deleteCookie('auth_username');
-                // Redirect to login
-                window.location.href = '/login.html';
-            }
+                        try {
+                            await axios.post('/api/logout');
+                        } catch (e) {
+                            // Ignore errors on logout
+                        }
+                        // Clear cookies
+                        deleteCookie('auth_token');
+                        deleteCookie('auth_username');
+                        // Redirect to login
+                        window.location.href = '/login.html';
+                    }
                 }
             }).mount('#app');
         </script>
