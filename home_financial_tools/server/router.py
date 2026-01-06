@@ -586,8 +586,8 @@ def _send_email_with_attachments(
     Args:
         gmail_account: Gmail account for SMTP authentication
         from_email: From address shown in email (can be alias)
-        to_email: Recipient email address
-        cc_email: CC email addresses (comma-separated)
+        to_email: Recipient email address(es) - comma-separated for multiple
+        cc_email: CC email address(es) - comma-separated for multiple
         app_password: Gmail app password for authentication
         subject: Email subject
         body: Email body text
@@ -612,8 +612,8 @@ def _send_email_with_attachments(
         pdf_attachment.add_header("Content-Disposition", "attachment", filename=filename)
         msg.attach(pdf_attachment)
 
-    # Build recipient list
-    recipients = [to_email]
+    # Build recipient list - parse comma-separated addresses for both To and CC
+    recipients = [addr.strip() for addr in to_email.split(",") if addr.strip()]
     if cc_email:
         recipients.extend([addr.strip() for addr in cc_email.split(",") if addr.strip()])
     logger.info(f"Recipients: {recipients}")

@@ -1010,14 +1010,14 @@
                         <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
                     </div>
                     <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>CC Email (Optional)</label>
-                        <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
+                        <label>CC Email (comma-separated for multiple, optional)</label>
+                        <input v-model="email_settings.cc_email" type="text" placeholder="cc1@example.com, cc2@example.com">
                     </div>
                 </div>
                 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>To Email</label>
-                        <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
+                        <label>To Email (comma-separated for multiple)</label>
+                        <input v-model="email_settings.to_email" type="text" placeholder="recipient1@example.com, recipient2@example.com">
                     </div>
                     <div class="form-group" style="margin-bottom: 0.75rem;">
                         <label>Email Subject</label>
