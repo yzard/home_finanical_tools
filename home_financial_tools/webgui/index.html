@@ -389,9 +389,56 @@
         }
 
         /* Summary Table Styles */
+        .summary-scroll-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            margin-top: 1rem;
+            padding-right: 0.5rem;
+        }
+
+        .summary-scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .summary-scroll-container::-webkit-scrollbar-track {
+            background: var(--card-bg);
+            border-radius: 4px;
+        }
+
+        .summary-scroll-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .summary-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        .month-section {
+            margin-bottom: 2rem;
+            min-height: 200px;
+        }
+
+        .month-section-header {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.3) 100%);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .month-section-loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .summary-table-container {
             overflow-x: auto;
-            margin-top: 1rem;
         }
 
         .summary-table {
@@ -801,35 +848,45 @@
         <!-- Summary Tab Content -->
         <div v-show="currentTab === 'summary'">
             <div class="card" style="margin-bottom: 2rem;">
-                <div class="card-header-row">
-                    <h2>Weekly Summary</h2>
-                    <div class="month-selector">
-                        <button @click="prevMonth" class="btn">&laquo; Prev</button>
-                        <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
-                        <button @click="nextMonth" class="btn">Next &raquo;</button>
-                    </div>
-                </div>
+                <h2>Monthly Summary</h2>
+                <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: -0.5rem; margin-bottom: 1rem;">
+                    Scroll to load more months
+                </p>
 
-                <div class="summary-table-container">
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Week Period</th>
-                                <th>Hours</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template v-for="(row, idx) in weeklySummary" :key="idx">
-                                <tr :class="{ 'year-summary-row': row.isYearly }">
-                                    <td>{{ row.label }}</td>
-                                    <td>{{ row.hours.toFixed(1) }}</td>
-                                    <td>${{ row.amount.toLocaleString(undefined, {minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2}) }}</td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                <div class="summary-scroll-container" ref="summaryScrollContainer">
+                    <div v-for="monthKey in summaryMonths" :key="monthKey" class="month-section" :data-month="monthKey">
+                        <div class="month-section-header">{{ formatMonthKey(monthKey) }}</div>
+
+                        <div v-if="summaryData[monthKey] === null" class="month-section-loading">
+                            Loading...
+                        </div>
+
+                        <div v-else-if="summaryData[monthKey] && summaryData[monthKey].length > 0" class="summary-table-container">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Week Period</th>
+                                        <th>Hours</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template v-for="(row, idx) in summaryData[monthKey]" :key="idx">
+                                        <tr :class="{ 'year-summary-row': row.isYearly }">
+                                            <td>{{ row.label }}</td>
+                                            <td>{{ row.hours.toFixed(1) }}</td>
+                                            <td>${{ row.amount.toLocaleString(undefined, {minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2}) }}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div v-else class="month-section-loading">
+                            No data for this month
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1063,7 +1120,10 @@
                         totalYearHours: 0,
                         totalYearAmount: 0,
                         totalPrevYearHours: 0,
-                        totalPrevYearAmount: 0
+                        totalPrevYearAmount: 0,
+                        summaryMonths: [],
+                        summaryData: {},
+                        summaryObserver: null
                     }
                 },
                 computed: {
@@ -1072,18 +1132,157 @@
                     },
                     currentYear() {
                         return this.currentDate.getFullYear();
+                    }
+                },
+                mounted() {
+                    this.loadAll();
+                    this.initializeSummaryMonths();
+                },
+                beforeUnmount() {
+                    if (this.summaryObserver) {
+                        this.summaryObserver.disconnect();
+                    }
+                },
+                watch: {
+                    currentTab(newTab, oldTab) {
+                        if (newTab === 'summary') {
+                            this.$nextTick(() => {
+                                this.setupSummaryObserver();
+                            });
+                        } else if (oldTab === 'summary' && this.summaryObserver) {
+                            this.summaryObserver.disconnect();
+                        }
+                    }
+                },
+                methods: {
+                    closeMobileTabs() {
+                        this.showMobileTabs = false;
                     },
-                    weeklySummary() {
-                        if (!this.calendarDays || this.calendarDays.length === 0) return [];
+                    initializeSummaryMonths() {
+                        const months = [];
+                        const today = new Date();
+                        // Generate last 24 months (2 years)
+                        for (let i = 0; i < 24; i++) {
+                            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                            months.push(monthKey);
+                            // Initialize with undefined (not loaded yet), null means loading
+                            this.summaryData[monthKey] = undefined;
+                        }
+                        this.summaryMonths = months;
+                    },
+                    formatMonthKey(monthKey) {
+                        const [year, month] = monthKey.split('-');
+                        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                        return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    },
+                    setupSummaryObserver() {
+                        if (this.summaryObserver) {
+                            this.summaryObserver.disconnect();
+                        }
+
+                        const container = this.$refs.summaryScrollContainer;
+                        if (!container) return;
+
+                        const options = {
+                            root: container,
+                            rootMargin: '100px',
+                            threshold: 0.1
+                        };
+
+                        this.summaryObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    const monthKey = entry.target.getAttribute('data-month');
+                                    if (monthKey && this.summaryData[monthKey] === undefined) {
+                                        this.loadMonthSummary(monthKey);
+                                    }
+                                }
+                            });
+                        }, options);
+
+                        const monthSections = container.querySelectorAll('.month-section');
+                        monthSections.forEach(section => {
+                            this.summaryObserver.observe(section);
+                        });
+                    },
+                    async loadMonthSummary(monthKey) {
+                        // Set to null to show loading state
+                        this.summaryData[monthKey] = null;
+
+                        const [year, month] = monthKey.split('-').map(Number);
+                        const startDate = new Date(year, month - 1, 1);
+                        const endDate = new Date(year, month, 0); // Last day of month
+
+                        // Fetch data for 6 weeks around this month
+                        const firstDay = new Date(year, month - 1, 1);
+                        let startPadding = firstDay.getDay() - 1;
+                        if (startPadding < 0) startPadding = 6;
+
+                        const gridStart = new Date(firstDay);
+                        gridStart.setDate(gridStart.getDate() - startPadding);
+
+                        const format = (d) => {
+                            const Y = d.getFullYear();
+                            const M = String(d.getMonth() + 1).padStart(2, '0');
+                            const D = String(d.getDate()).padStart(2, '0');
+                            return `${Y}-${M}-${D}`;
+                        };
+
+                        const startStr = format(gridStart);
+                        const endGrid = new Date(gridStart);
+                        endGrid.setDate(endGrid.getDate() + 41);
+                        const endStr = format(endGrid);
+
+                        try {
+                            const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
+                            const entryMap = {};
+                            entriesRes.data.forEach(e => entryMap[e.date] = e);
+
+                            // Build calendarDays for this month
+                            const days = [];
+                            for (let i = 0; i < 42; i++) {
+                                const d = new Date(gridStart);
+                                d.setDate(d.getDate() + i);
+                                const dateStr = format(d);
+                                const entry = entryMap[dateStr] || {
+                                    hours: 0,
+                                    hourly_rate: this.default_hourly_rate,
+                                    hours_inputted: false,
+                                    rate_inputted: false
+                                };
+
+                                days.push({
+                                    dateStr: dateStr,
+                                    dayNum: d.getDate(),
+                                    isCurrentMonth: d.getMonth() === month - 1,
+                                    hours: entry.hours,
+                                    hourly_rate: entry.hourly_rate
+                                });
+                            }
+
+                            // Compute weekly summary
+                            const summary = this.computeWeeklySummaryForMonth(days, year, month - 1);
+                            this.summaryData[monthKey] = summary;
+                        } catch (e) {
+                            console.error('Failed to load summary for', monthKey, e);
+                            this.summaryData[monthKey] = [];
+                        }
+                    },
+                    computeWeeklySummaryForMonth(calendarDays, year, monthIndex) {
+                        if (!calendarDays || calendarDays.length === 0) return [];
 
                         const rows = [];
-                        let yearlyHours = 0;
-                        let yearlyAmount = 0;
-                        const year = this.currentDate.getFullYear();
+
+                        // Fetch yearly totals for this year
+                        const totalYearHours = this.totalYearHours || 0;
+                        const totalYearAmount = this.totalYearAmount || 0;
+                        const totalPrevYearHours = this.totalPrevYearHours || 0;
+                        const totalPrevYearAmount = this.totalPrevYearAmount || 0;
 
                         // We have 42 days (6 weeks)
                         for (let i = 0; i < 42; i += 7) {
-                            const weekDays = this.calendarDays.slice(i, i + 7);
+                            const weekDays = calendarDays.slice(i, i + 7);
                             const start = weekDays[0];
                             const end = weekDays[6];
 
@@ -1119,14 +1318,11 @@
                                     amount: part1Amount
                                 });
 
-                                // Insert Yearly Summary (Total for current month's year)
-                                // Note: In a real app, we'd fetch the whole year. 
-                                // For now, we'll try to get what we have or placeholder.
-                                // The user asked for a row that shows 1/1 to 12/31.
+                                // Insert Yearly Summary
                                 rows.push({
                                     label: `YEAR ${year} TOTAL (1/1 - 12/31)`,
-                                    hours: this.totalYearHours || 0,
-                                    amount: this.totalYearAmount || 0,
+                                    hours: totalYearHours,
+                                    amount: totalYearAmount,
                                     isYearly: true
                                 });
 
@@ -1165,8 +1361,8 @@
                                 // Yearly Summary for PREV year
                                 rows.push({
                                     label: `YEAR ${year - 1} TOTAL (1/1 - 12/31)`,
-                                    hours: this.totalPrevYearHours || 0,
-                                    amount: this.totalPrevYearAmount || 0,
+                                    hours: totalPrevYearHours,
+                                    amount: totalPrevYearAmount,
                                     isYearly: true
                                 });
 
@@ -1193,14 +1389,6 @@
                             }
                         }
                         return rows;
-                    }
-                },
-                mounted() {
-                    this.loadAll();
-                },
-                methods: {
-                    closeMobileTabs() {
-                        this.showMobileTabs = false;
                     },
                     async loadAll() {
                         try {
