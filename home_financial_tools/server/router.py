@@ -72,6 +72,7 @@ class EmailSettingsData(BaseModel):
     from_email: str  # From address (can be alias)
     to_email: str
     cc_email: Optional[str] = None
+    email_subject: Optional[str] = None
     gmail_app_password: Optional[str] = None
 
 
@@ -360,12 +361,13 @@ async def get_email_settings(request: Request, current_user: str = Depends(get_c
     db = request.app.state.db
     data = db.get_email_settings()
     if not data:
-        return {"gmail_account": "", "from_email": "", "to_email": "", "cc_email": "", "has_password": False}
+        return {"gmail_account": "", "from_email": "", "to_email": "", "cc_email": "", "email_subject": "", "has_password": False}
     return {
         "gmail_account": data.get("gmail_account") or "",
         "from_email": data.get("from_email") or "",
         "to_email": data.get("to_email") or "",
         "cc_email": data.get("cc_email") or "",
+        "email_subject": data.get("email_subject") or "",
         "has_password": bool(data.get("gmail_app_password")),
     }
 
@@ -455,6 +457,13 @@ async def send_monthly_email(
 
     logger.info(f"Generated {len(attachments)} PDF attachments")
 
+    # Prepare email subject - use custom if provided, otherwise use default format
+    month_year_str = datetime(req.year, req.month, 1).strftime('%B %Y')
+    email_subject = email_settings.get("email_subject") or f"Invoices for {month_year_str}"
+    # Replace placeholders in subject
+    email_subject = email_subject.replace("{month}", datetime(req.year, req.month, 1).strftime('%B'))
+    email_subject = email_subject.replace("{year}", str(req.year))
+
     # Send email
     logger.info(f"Sending email to {email_settings['to_email']}...")
     _send_email_with_attachments(
@@ -463,8 +472,8 @@ async def send_monthly_email(
         to_email=email_settings["to_email"],
         cc_email=email_settings.get("cc_email"),
         app_password=email_settings["gmail_app_password"],
-        subject=f"Invoices for {datetime(req.year, req.month, 1).strftime('%B %Y')}",
-        body=f"Please find attached invoices for {datetime(req.year, req.month, 1).strftime('%B %Y')}.",
+        subject=email_subject,
+        body=f"Please find attached invoices for {month_year_str}.",
         attachments=attachments,
     )
     logger.info("Email sent successfully")

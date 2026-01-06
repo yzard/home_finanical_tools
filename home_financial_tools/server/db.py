@@ -122,6 +122,11 @@ class Database:
                 cursor.execute("ALTER TABLE email_settings ADD COLUMN gmail_account TEXT")
             except sqlite3.OperationalError:
                 pass
+            # Migration: add email_subject column if it doesn't exist
+            try:
+                cursor.execute("ALTER TABLE email_settings ADD COLUMN email_subject TEXT")
+            except sqlite3.OperationalError:
+                pass
             # Migration: add columns if they don't exist
             try:
                 cursor.execute("ALTER TABLE time_entries ADD COLUMN hours_inputted INTEGER DEFAULT 0")
@@ -424,6 +429,7 @@ class Database:
                      , from_email
                      , to_email
                      , cc_email
+                     , email_subject
                      , gmail_app_password
                   FROM email_settings
                  WHERE id = 1
@@ -437,7 +443,8 @@ class Database:
                     "from_email": row[2],
                     "to_email": row[3],
                     "cc_email": row[4],
-                    "gmail_app_password": row[5],
+                    "email_subject": row[5],
+                    "gmail_app_password": row[6],
                 }
             return None
 
@@ -451,8 +458,9 @@ class Database:
                   , from_email
                   , to_email
                   , cc_email
+                  , email_subject
                   , gmail_app_password
-                ) VALUES (1, ?, ?, ?, ?, ?)
+                ) VALUES (1, ?, ?, ?, ?, ?, ?)
             """
             cursor.execute(
                 sql,
@@ -461,6 +469,7 @@ class Database:
                     data.get("from_email"),
                     data.get("to_email"),
                     data.get("cc_email"),
+                    data.get("email_subject"),
                     data.get("gmail_app_password"),
                 ),
             )

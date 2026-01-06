@@ -859,17 +859,25 @@
 
         <!-- Calendar Tab Content -->
         <div v-show="currentTab === 'calendar'">
-            <div class="actions"
-                style="margin-top: 0; margin-bottom: 2rem; justify-content: flex-start; flex-wrap: wrap; gap: 1rem;">
-                <button @click="generateHalfMonth('first')" class="btn btn-primary"
-                    style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 1-15</button>
-                <button @click="generateHalfMonth('second')" class="btn btn-primary"
-                    style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 16-End</button>
-                <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
-                    :disabled="sending_email || !email_settings.has_password"
-                    style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                    {{ sending_email ? 'Sending...' : 'Send Monthly Invoice Email' }}
-                </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button @click="generateHalfMonth('first')" class="btn btn-primary"
+                        style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 1-15</button>
+                    <button @click="generateHalfMonth('second')" class="btn btn-primary"
+                        style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 16-End</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="margin: 0; min-width: 120px;">
+                        <label style="margin-bottom: 0.25rem;">INV. NUM</label>
+                        <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber"
+                            style="padding: 0.6rem 0.8rem; font-size: 0.95rem;">
+                    </div>
+                    <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
+                        :disabled="sending_email || !email_settings.has_password"
+                        style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        {{ sending_email ? 'Sending...' : 'Send Invoices' }}
+                    </button>
+                </div>
             </div>
 
             <div class="card" style="margin-bottom: 2rem;">
@@ -973,16 +981,54 @@
         <!-- Settings Tab Content -->
         <div v-show="currentTab === 'settings'">
             <div class="card" style="margin-bottom: 2rem;">
-                <h2>Application Settings</h2>
+                <h2>Billing Info Settings</h2>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                    <div class="form-group" style="max-width: 200px; flex: 1; min-width: 150px;">
-                        <label>Next Invoice Number</label>
-                        <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber">
-                    </div>
                     <div class="form-group" style="max-width: 200px; flex: 1; min-width: 150px;">
                         <label>Default Hourly Rate</label>
                         <input v-model.number="default_hourly_rate" type="number" @change="saveDefaultRate">
                     </div>
+                </div>
+            </div>
+
+            <!-- Email Settings -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Email Settings</h2>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Gmail Account (for login)</label>
+                        <input v-model="email_settings.gmail_account" type="email" placeholder="your.account@gmail.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Gmail App Password</label>
+                        <input v-model="email_settings.gmail_app_password" type="password"
+                            :placeholder="email_settings.has_password ? '(saved - enter new to change)' : 'Enter app password'">
+                    </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>From Email (sender alias)</label>
+                        <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>CC Email (Optional)</label>
+                        <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
+                    </div>
+                </div>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>To Email</label>
+                        <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Email Subject</label>
+                        <input v-model="email_settings.email_subject" type="text" placeholder="Invoices for {month} {year}">
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                    <button @click="saveEmailSettings" class="btn btn-primary">Save Email Settings</button>
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">
+                        Generate app password at: Google Account &gt; Security &gt; App Passwords
+                    </small>
                 </div>
             </div>
 
@@ -1059,45 +1105,6 @@
                         <input v-model="bill_to.zip_code" type="text">
                     </div>
                     <button @click="saveBillTo" class="btn btn-primary">Save Bill To</button>
-                </div>
-            </div>
-
-            <!-- Email Settings -->
-            <div class="card" style="margin-top: 1rem;">
-                <h2>Email Settings</h2>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>Gmail Account (for login)</label>
-                        <input v-model="email_settings.gmail_account" type="email" placeholder="your.account@gmail.com">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>Gmail App Password</label>
-                        <input v-model="email_settings.gmail_app_password" type="password"
-                            :placeholder="email_settings.has_password ? '(saved - enter new to change)' : 'Enter app password'">
-                    </div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>From Email (sender alias)</label>
-                        <input v-model="email_settings.from_email" type="email" placeholder="business@yourdomain.com">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>CC Email (Optional)</label>
-                        <input v-model="email_settings.cc_email" type="email" placeholder="cc@example.com">
-                    </div>
-                </div>
-                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>To Email</label>
-                        <input v-model="email_settings.to_email" type="email" placeholder="recipient@example.com">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;"></div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
-                    <button @click="saveEmailSettings" class="btn btn-primary">Save Email Settings</button>
-                    <small style="color: var(--text-muted); font-size: 0.75rem;">
-                        Generate app password at: Google Account &gt; Security &gt; App Passwords
-                    </small>
                 </div>
             </div>
         </div>
@@ -1190,6 +1197,7 @@
                             from_email: '',
                             to_email: '',
                             cc_email: '',
+                            email_subject: '',
                             gmail_app_password: '',
                             has_password: false
                         },
@@ -1526,6 +1534,7 @@
                             this.email_settings.from_email = res.data.from_email || '';
                             this.email_settings.to_email = res.data.to_email || '';
                             this.email_settings.cc_email = res.data.cc_email || '';
+                            this.email_settings.email_subject = res.data.email_subject || '';
                             this.email_settings.has_password = res.data.has_password || false;
                         } catch (e) {
                             console.error('Failed to load email settings:', e);
@@ -1538,6 +1547,7 @@
                                 from_email: this.email_settings.from_email,
                                 to_email: this.email_settings.to_email,
                                 cc_email: this.email_settings.cc_email,
+                                email_subject: this.email_settings.email_subject,
                                 gmail_app_password: this.email_settings.gmail_app_password
                             });
                             if (this.email_settings.gmail_app_password) {
