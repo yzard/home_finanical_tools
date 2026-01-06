@@ -388,6 +388,49 @@
             gap: 1rem;
         }
 
+        /* Summary Table Styles */
+        .summary-table-container {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            color: var(--text);
+        }
+
+        .summary-table th,
+        .summary-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-table th {
+            color: var(--primary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .summary-table .year-summary-row {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.2) 100%);
+            font-weight: 800;
+        }
+
+        .summary-table .year-summary-row td {
+            color: #60a5fa;
+            border-top: 2px solid var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
         .card .btn-primary {
             margin-top: auto;
         }
@@ -680,6 +723,8 @@
                 <div class="nav-tabs">
                     <div class="nav-tab" :class="{ active: currentTab === 'calendar' }"
                         @click="currentTab = 'calendar'">Calendar</div>
+                    <div class="nav-tab" :class="{ active: currentTab === 'summary' }" @click="currentTab = 'summary'">
+                        Summary</div>
                     <div class="nav-tab" :class="{ active: currentTab === 'settings' }"
                         @click="currentTab = 'settings'">Settings</div>
                 </div>
@@ -688,11 +733,13 @@
                 <div class="mobile-tab-selector" @click.stop>
                     <button class="mobile-tab-trigger" :class="{ open: showMobileTabs }"
                         @click="showMobileTabs = !showMobileTabs">
-                        {{ currentTab === 'calendar' ? 'Calendar' : 'Settings' }}
+                        {{ currentTab.charAt(0).toUpperCase() + currentTab.slice(1) }}
                     </button>
                     <div v-if="showMobileTabs" class="mobile-tab-menu">
                         <div class="mobile-tab-item" :class="{ active: currentTab === 'calendar' }"
                             @click="currentTab = 'calendar'; showMobileTabs = false">Calendar</div>
+                        <div class="mobile-tab-item" :class="{ active: currentTab === 'summary' }"
+                            @click="currentTab = 'summary'; showMobileTabs = false">Summary</div>
                         <div class="mobile-tab-item" :class="{ active: currentTab === 'settings' }"
                             @click="currentTab = 'settings'; showMobileTabs = false">Settings</div>
                     </div>
@@ -747,6 +794,42 @@
                                 :class="{ 'is-default': !day.rate_inputted, 'is-inputted': day.rate_inputted }">
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Tab Content -->
+        <div v-show="currentTab === 'summary'">
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header-row">
+                    <h2>Weekly Summary</h2>
+                    <div class="month-selector">
+                        <button @click="prevMonth" class="btn">&laquo; Prev</button>
+                        <span style="font-weight: 600;">{{ currentMonthName }} {{ currentYear }}</span>
+                        <button @click="nextMonth" class="btn">Next &raquo;</button>
+                    </div>
+                </div>
+
+                <div class="summary-table-container">
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>Week Period</th>
+                                <th>Hours</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template v-for="(row, idx) in weeklySummary" :key="idx">
+                                <tr :class="{ 'year-summary-row': row.isYearly }">
+                                    <td>{{ row.label }}</td>
+                                    <td>{{ row.hours.toFixed(1) }}</td>
+                                    <td>${{ row.amount.toLocaleString(undefined, {minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2}) }}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -976,7 +1059,11 @@
                         },
                         sending_email: false,
                         currentTab: 'calendar',
-                        showMobileTabs: false
+                        showMobileTabs: false,
+                        totalYearHours: 0,
+                        totalYearAmount: 0,
+                        totalPrevYearHours: 0,
+                        totalPrevYearAmount: 0
                     }
                 },
                 computed: {
@@ -985,6 +1072,127 @@
                     },
                     currentYear() {
                         return this.currentDate.getFullYear();
+                    },
+                    weeklySummary() {
+                        if (!this.calendarDays || this.calendarDays.length === 0) return [];
+
+                        const rows = [];
+                        let yearlyHours = 0;
+                        let yearlyAmount = 0;
+                        const year = this.currentDate.getFullYear();
+
+                        // We have 42 days (6 weeks)
+                        for (let i = 0; i < 42; i += 7) {
+                            const weekDays = this.calendarDays.slice(i, i + 7);
+                            const start = weekDays[0];
+                            const end = weekDays[6];
+
+                            const startD = new Date(start.dateStr + 'T00:00:00');
+                            const endD = new Date(end.dateStr + 'T00:00:00');
+
+                            // Check if year ends in this week
+                            const endsThisYear = startD.getFullYear() === year && endD.getFullYear() === year + 1;
+                            const startsThisYear = startD.getFullYear() === year - 1 && endD.getFullYear() === year;
+
+                            if (endsThisYear) {
+                                // Split week at Dec 31
+                                let part1Hours = 0;
+                                let part1Amount = 0;
+                                let part2Hours = 0;
+                                let part2Amount = 0;
+
+                                weekDays.forEach(d => {
+                                    const dt = new Date(d.dateStr + 'T00:00:00');
+                                    if (dt.getFullYear() === year) {
+                                        part1Hours += d.hours;
+                                        part1Amount += d.hours * d.hourly_rate;
+                                    } else {
+                                        part2Hours += d.hours;
+                                        part2Amount += d.hours * d.hourly_rate;
+                                    }
+                                });
+
+                                // Row 1: Mon to Dec 31
+                                rows.push({
+                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - Dec 31`,
+                                    hours: part1Hours,
+                                    amount: part1Amount
+                                });
+
+                                // Insert Yearly Summary (Total for current month's year)
+                                // Note: In a real app, we'd fetch the whole year. 
+                                // For now, we'll try to get what we have or placeholder.
+                                // The user asked for a row that shows 1/1 to 12/31.
+                                rows.push({
+                                    label: `YEAR ${year} TOTAL (1/1 - 12/31)`,
+                                    hours: this.totalYearHours || 0,
+                                    amount: this.totalYearAmount || 0,
+                                    isYearly: true
+                                });
+
+                                // Row 2: Jan 1 to Sun
+                                rows.push({
+                                    label: `Week Jan 1 - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+                                    hours: part2Hours,
+                                    amount: part2Amount
+                                });
+
+                            } else if (startsThisYear) {
+                                // Similar split for Jan start if we are looking at Jan month
+                                let part1Hours = 0;
+                                let part1Amount = 0;
+                                let part2Hours = 0;
+                                let part2Amount = 0;
+
+                                weekDays.forEach(d => {
+                                    const dt = new Date(d.dateStr + 'T00:00:00');
+                                    if (dt.getFullYear() === year - 1) {
+                                        part1Hours += d.hours;
+                                        part1Amount += d.hours * d.hourly_rate;
+                                    } else {
+                                        part2Hours += d.hours;
+                                        part2Amount += d.hours * d.hourly_rate;
+                                    }
+                                });
+
+                                // Row 1: Mon to Dec 31 (of prev year)
+                                rows.push({
+                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - Dec 31`,
+                                    hours: part1Hours,
+                                    amount: part1Amount
+                                });
+
+                                // Yearly Summary for PREV year
+                                rows.push({
+                                    label: `YEAR ${year - 1} TOTAL (1/1 - 12/31)`,
+                                    hours: this.totalPrevYearHours || 0,
+                                    amount: this.totalPrevYearAmount || 0,
+                                    isYearly: true
+                                });
+
+                                // Row 2: Jan 1 to Sun
+                                rows.push({
+                                    label: `Week Jan 1 - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+                                    hours: part2Hours,
+                                    amount: part2Amount
+                                });
+
+                            } else {
+                                // Normal week
+                                let h = 0;
+                                let a = 0;
+                                weekDays.forEach(d => {
+                                    h += d.hours;
+                                    a += d.hours * d.hourly_rate;
+                                });
+                                rows.push({
+                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+                                    hours: h,
+                                    amount: a
+                                });
+                            }
+                        }
+                        return rows;
                     }
                 },
                 mounted() {
@@ -1156,106 +1364,140 @@
                             });
                         }
                         this.calendarDays = days;
+                        this.loadYearlyTotals();
                     },
-                    async saveTimeEntry(day) {
-                        await axios.post('/api/time_entries', {
-                            date: day.dateStr,
-                            hours: day.hours || 0,
-                            hourly_rate: day.hourly_rate || this.default_hourly_rate,
-                            hours_inputted: !!day.hours_inputted,
-                            rate_inputted: !!day.rate_inputted
-                        });
+                    async loadYearlyTotals() {
+                        const year = this.currentDate.getFullYear();
+
+                        // Current Year
+                        const startY = `${year}-01-01`;
+                        const endY = `${year}-12-31`;
+                        try {
+                            const res = await axios.get(`/api/time_entries?start_date=${startY}&end_date=${endY}`);
+                            let h = 0;
+                            let a = 0;
+                            res.data.forEach(e => {
+                                h += e.hours;
+                                a += e.hours * e.hourly_rate;
+                            });
+                            this.totalYearHours = h;
+                            this.totalYearAmount = a;
+                        } catch (e) {
+                            console.error("Yearly fetch failed", e);
+                        }
+
+                        // Prev Year (for Jan view)
+                        const startPY = `${year - 1}-01-01`;
+                        const endPY = `${year - 1}-12-31`;
+                        try {
+                            const res = await axios.get(`/api/time_entries?start_date=${startPY}&end_date=${endPY}`);
+                            let h = 0;
+                            let a = 0;
+                            res.data.forEach(e => {
+                                h += e.hours;
+                                a += e.hours * e.hourly_rate;
+                            });
+                            this.totalPrevYearHours = h;
+                            this.totalPrevYearAmount = a;
+                        } catch (e) {
+                            console.error("Prev yearly fetch failed", e);
+                        }
+                    },
+                    is_inputted: !!day.hours_inputted,
+                    rate_inputted: !!day.rate_inputted
+                });
+            this.loadYearlyTotals();
                     },
                     async generateHalfMonth(half) {
-                        const year = this.currentDate.getFullYear();
-                        const month = this.currentDate.getMonth();
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
 
-                        let startDate, endDate;
-                        if (half === 'first') {
-                            startDate = new Date(year, month, 1);
-                            endDate = new Date(year, month, 15);
-                        } else {
-                            startDate = new Date(year, month, 16);
-                            endDate = new Date(year, month + 1, 0); // Last day of month
-                        }
+                let startDate, endDate;
+                if (half === 'first') {
+                    startDate = new Date(year, month, 1);
+                    endDate = new Date(year, month, 15);
+                } else {
+                    startDate = new Date(year, month, 16);
+                    endDate = new Date(year, month + 1, 0); // Last day of month
+                }
 
-                        const format = (d) => {
-                            const Y = d.getFullYear();
-                            const M = String(d.getMonth() + 1).padStart(2, '0');
-                            const D = String(d.getDate()).padStart(2, '0');
-                            return `${Y}-${M}-${D}`;
-                        };
+                const format = (d) => {
+                    const Y = d.getFullYear();
+                    const M = String(d.getMonth() + 1).padStart(2, '0');
+                    const D = String(d.getDate()).padStart(2, '0');
+                    return `${Y}-${M}-${D}`;
+                };
 
-                        const startStr = format(startDate);
-                        const endStr = format(endDate);
+                const startStr = format(startDate);
+                const endStr = format(endDate);
 
-                        try {
-                            const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
-                            const activeEntries = entriesRes.data.filter(e => e.hours > 0);
+                try {
+                    const entriesRes = await axios.get(`/api/time_entries?start_date=${startStr}&end_date=${endStr}`);
+                    const activeEntries = entriesRes.data.filter(e => e.hours > 0);
 
-                            if (activeEntries.length === 0) {
-                                alert("No hours entered for this period");
-                                return;
-                            }
-
-                            const res = await axios.post('/api/generate', {
-                                invoice_number: this.invoice_number,
-                                start_date: startStr,
-                                end_date: endStr,
-                                entries: activeEntries
-                            }, { responseType: 'blob' });
-
-                            // Extract filename from Content-Disposition header
-                            let filename = `invoice_${this.invoice_number}.pdf`;
-                            const disposition = res.headers['content-disposition'];
-                            if (disposition && disposition.indexOf('attachment') !== -1) {
-                                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                                const matches = filenameRegex.exec(disposition);
-                                if (matches != null && matches[1]) {
-                                    filename = matches[1].replace(/['"]/g, '');
-                                }
-                            }
-
-                            const url = window.URL.createObjectURL(new Blob([res.data]));
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.setAttribute('download', filename);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-
-                            // Increment invoice number
-                            this.invoice_number++;
-                            await this.saveInvoiceNumber();
-                        } catch (e) {
-                            if (e.response && e.response.data) {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    try {
-                                        const err = JSON.parse(reader.result);
-                                        alert("Error: " + err.detail);
-                                    } catch (ex) {
-                                        alert("Error: " + reader.result);
-                                    }
-                                };
-                                reader.readAsText(e.response.data);
-                            } else {
-                                alert("Error: " + e.message);
-                            }
-                        }
-                    },
-                    async logout() {
-                        try {
-                            await axios.post('/api/logout');
-                        } catch (e) {
-                            // Ignore errors on logout
-                        }
-                        // Clear cookies
-                        deleteCookie('auth_token');
-                        deleteCookie('auth_username');
-                        // Redirect to login
-                        window.location.href = '/login.html';
+                    if (activeEntries.length === 0) {
+                        alert("No hours entered for this period");
+                        return;
                     }
+
+                    const res = await axios.post('/api/generate', {
+                        invoice_number: this.invoice_number,
+                        start_date: startStr,
+                        end_date: endStr,
+                        entries: activeEntries
+                    }, { responseType: 'blob' });
+
+                    // Extract filename from Content-Disposition header
+                    let filename = `invoice_${this.invoice_number}.pdf`;
+                    const disposition = res.headers['content-disposition'];
+                    if (disposition && disposition.indexOf('attachment') !== -1) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(disposition);
+                        if (matches != null && matches[1]) {
+                            filename = matches[1].replace(/['"]/g, '');
+                        }
+                    }
+
+                    const url = window.URL.createObjectURL(new Blob([res.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', filename);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Increment invoice number
+                    this.invoice_number++;
+                    await this.saveInvoiceNumber();
+                } catch (e) {
+                    if (e.response && e.response.data) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            try {
+                                const err = JSON.parse(reader.result);
+                                alert("Error: " + err.detail);
+                            } catch (ex) {
+                                alert("Error: " + reader.result);
+                            }
+                        };
+                        reader.readAsText(e.response.data);
+                    } else {
+                        alert("Error: " + e.message);
+                    }
+                }
+            },
+                    async logout() {
+                try {
+                    await axios.post('/api/logout');
+                } catch (e) {
+                    // Ignore errors on logout
+                }
+                // Clear cookies
+                deleteCookie('auth_token');
+                deleteCookie('auth_username');
+                // Redirect to login
+                window.location.href = '/login.html';
+            }
                 }
             }).mount('#app');
         </script>
