@@ -540,6 +540,83 @@
             margin-top: auto;
         }
 
+        /* Calendar Actions Layout */
+        .calendar-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .calendar-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .calendar-preview-btn {
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+        }
+
+        .invoice-number-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .invoice-number-group label {
+            margin: 0;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .invoice-number-group input {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.95rem;
+            width: 100px;
+        }
+
+        .calendar-send-btn {
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        /* Mobile Layout for Calendar Actions */
+        @media (max-width: 768px) {
+            .calendar-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .calendar-actions-row {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            .calendar-actions-row:first-child {
+                gap: 0.75rem;
+            }
+
+            .calendar-preview-btn {
+                flex: 1;
+                padding: 0.875rem 1rem;
+            }
+
+            .invoice-number-group {
+                flex: 0 0 auto;
+            }
+
+            .calendar-send-btn {
+                flex: 1;
+                padding: 0.875rem 1rem;
+            }
+        }
+
         .day-cell input.is-default {
             color: var(--text-muted);
         }
@@ -859,22 +936,22 @@
 
         <!-- Calendar Tab Content -->
         <div v-show="currentTab === 'calendar'">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <button @click="generateHalfMonth('first')" class="btn btn-primary"
-                        style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 1-15</button>
-                    <button @click="generateHalfMonth('second')" class="btn btn-primary"
-                        style="padding: 1rem 1.5rem; font-size: 1rem;">Preview 16-End</button>
+            <div class="calendar-actions">
+                <div class="calendar-actions-row">
+                    <button @click="generateHalfMonth('first')" class="btn btn-primary calendar-preview-btn">
+                        Preview 1-15
+                    </button>
+                    <button @click="generateHalfMonth('second')" class="btn btn-primary calendar-preview-btn">
+                        Preview 16-End
+                    </button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                    <div class="form-group" style="margin: 0; min-width: 120px;">
-                        <label style="margin-bottom: 0.25rem;">INV. NUM</label>
-                        <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber"
-                            style="padding: 0.6rem 0.8rem; font-size: 0.95rem;">
+                <div class="calendar-actions-row">
+                    <div class="invoice-number-group">
+                        <label>INV. NUM</label>
+                        <input v-model.number="invoice_number" type="number" @change="saveInvoiceNumber">
                     </div>
-                    <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary"
-                        :disabled="sending_email || !email_settings.has_password"
-                        style="padding: 1rem 1.5rem; font-size: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <button @click="sendMonthlyInvoiceEmail" class="btn btn-primary calendar-send-btn"
+                        :disabled="sending_email || !email_settings.has_password">
                         {{ sending_email ? 'Sending...' : 'Send Invoices' }}
                     </button>
                 </div>
