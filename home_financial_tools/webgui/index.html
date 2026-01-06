@@ -1414,89 +1414,48 @@
                             const start = weekDays[0];
                             const end = weekDays[6];
 
+                            // Check if this week has any days belonging to the target month
+                            const hasMonthDays = weekDays.some(d => {
+                                const dt = new Date(d.dateStr + 'T00:00:00');
+                                return dt.getMonth() === monthIndex && dt.getFullYear() === year;
+                            });
+
+                            // Skip this week if it has no days in the target month
+                            if (!hasMonthDays) {
+                                continue;
+                            }
+
                             const startD = new Date(start.dateStr + 'T00:00:00');
                             const endD = new Date(end.dateStr + 'T00:00:00');
 
-                            // Check if year ends in this week
-                            const endsThisYear = startD.getFullYear() === year && endD.getFullYear() === year + 1;
-                            const startsThisYear = startD.getFullYear() === year - 1 && endD.getFullYear() === year;
+                            // Only calculate hours/amount for days that belong to the target month
+                            let weekHours = 0;
+                            let weekAmount = 0;
+                            let weekStartDate = null;
+                            let weekEndDate = null;
 
-                            if (endsThisYear) {
-                                // Split week at Dec 31
-                                let part1Hours = 0;
-                                let part1Amount = 0;
-                                let part2Hours = 0;
-                                let part2Amount = 0;
+                            weekDays.forEach(d => {
+                                const dt = new Date(d.dateStr + 'T00:00:00');
+                                if (dt.getMonth() === monthIndex && dt.getFullYear() === year) {
+                                    weekHours += d.hours;
+                                    weekAmount += d.hours * d.hourly_rate;
 
-                                weekDays.forEach(d => {
-                                    const dt = new Date(d.dateStr + 'T00:00:00');
-                                    if (dt.getFullYear() === year) {
-                                        part1Hours += d.hours;
-                                        part1Amount += d.hours * d.hourly_rate;
-                                    } else {
-                                        part2Hours += d.hours;
-                                        part2Amount += d.hours * d.hourly_rate;
+                                    if (!weekStartDate) {
+                                        weekStartDate = dt;
                                     }
-                                });
+                                    weekEndDate = dt;
+                                }
+                            });
 
-                                // Row 1: Mon to Dec 31
+                            // Create label based on actual dates in the month
+                            if (weekStartDate && weekEndDate) {
+                                const startLabel = weekStartDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                const endLabel = weekEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
                                 rows.push({
-                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - Dec 31`,
-                                    hours: part1Hours,
-                                    amount: part1Amount
-                                });
-
-                                // Row 2: Jan 1 to Sun
-                                rows.push({
-                                    label: `Week Jan 1 - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
-                                    hours: part2Hours,
-                                    amount: part2Amount
-                                });
-
-                            } else if (startsThisYear) {
-                                // Similar split for Jan start if we are looking at Jan month
-                                let part1Hours = 0;
-                                let part1Amount = 0;
-                                let part2Hours = 0;
-                                let part2Amount = 0;
-
-                                weekDays.forEach(d => {
-                                    const dt = new Date(d.dateStr + 'T00:00:00');
-                                    if (dt.getFullYear() === year - 1) {
-                                        part1Hours += d.hours;
-                                        part1Amount += d.hours * d.hourly_rate;
-                                    } else {
-                                        part2Hours += d.hours;
-                                        part2Amount += d.hours * d.hourly_rate;
-                                    }
-                                });
-
-                                // Row 1: Mon to Dec 31 (of prev year)
-                                rows.push({
-                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - Dec 31`,
-                                    hours: part1Hours,
-                                    amount: part1Amount
-                                });
-
-                                // Row 2: Jan 1 to Sun
-                                rows.push({
-                                    label: `Week Jan 1 - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
-                                    hours: part2Hours,
-                                    amount: part2Amount
-                                });
-
-                            } else {
-                                // Normal week
-                                let h = 0;
-                                let a = 0;
-                                weekDays.forEach(d => {
-                                    h += d.hours;
-                                    a += d.hours * d.hourly_rate;
-                                });
-                                rows.push({
-                                    label: `Week ${startD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${endD.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
-                                    hours: h,
-                                    amount: a
+                                    label: startLabel === endLabel ? `Week ${startLabel}` : `Week ${startLabel} - ${endLabel}`,
+                                    hours: weekHours,
+                                    amount: weekAmount
                                 });
                             }
                         }
