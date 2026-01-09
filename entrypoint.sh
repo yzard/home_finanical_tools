@@ -7,6 +7,13 @@ UMASK=${UMASK:-022}
 
 echo "Starting with PUID=$PUID, PGID=$PGID, UMASK=$UMASK"
 
+# Set timezone if TZ is provided
+if [ -n "$TZ" ]; then
+    echo "Setting timezone to $TZ"
+    cp /usr/share/zoneinfo/$TZ /etc/localtime 2>/dev/null || true
+    echo "$TZ" > /etc/timezone 2>/dev/null || true
+fi
+
 # Create group if it doesn't exist
 if ! getent group abc > /dev/null 2>&1; then
     addgroup -g "$PGID" abc

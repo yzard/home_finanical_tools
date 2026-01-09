@@ -3,14 +3,17 @@ FROM python:3.12-alpine
 WORKDIR /app
 
 # Install system dependencies
-# - build-base: for compiling Python packages
+# - build-base: for compiling Python packages with C extensions
 # - su-exec: for dropping privileges to specified user
-# - shadow: for usermod/groupmod commands
+# - shadow: for user/group management
+# - uv: fast Python package manager
+# - tzdata: for timezone support
 RUN apk add --no-cache \
     build-base \
     su-exec \
     shadow \
-    uv
+    uv \
+    tzdata
 
 # Copy project files
 COPY . .
@@ -30,6 +33,7 @@ RUN chmod +x /entrypoint.sh
 ENV PUID=1000 \
     PGID=1000 \
     UMASK=022 \
+    TZ=UTC \
     CONFIG_PATH=/data/config.yaml \
     PYTHONPATH=/app
 
